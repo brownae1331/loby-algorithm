@@ -39,29 +39,20 @@ class CompatibilityCalculator:
         if self.p1.occupation == self.p2.occupation:
             self.scored_points += 1
 
-        if (
-            self.p1.occupation == Occupation.CRUISING
-            or self.p1.occupation == Occupation.CRUISING
-        ):
-            return
-
-        if self.p1.work_industry and self.p2.work_industry:
+        if self.p1.work_industry != 0 and self.p2.work_industry != 0:
             self.total_points += 1
-
             if self.p1.work_industry == self.p2.work_industry:
                 self.scored_points += 1
 
-        if self.p1.university and self.p2.university:
+        if self.p1.university_id != 0 and self.p2.university_id != 0:
             self.total_points += 1
-
-            if self.p1.university == self.p2.university:
+            if self.p1.university_id == self.p2.university_id:
                 self.scored_points += 1
         else:
             return
 
-        if self.p1.course and self.p2.course:
+        if self.p1.course != 0 and self.p2.course != 0:
             self.total_points += 1
-
             if self.p1.course == self.p2.course:
                 self.scored_points += 1
 
@@ -86,9 +77,9 @@ class CompatibilityCalculator:
         """Compare interests between two profiles."""
         self.total_points += len(self.p1.interests)
 
-        p1_interests = [interest.interest.name for interest in self.p1.interests]
-        p2_interests = [interest.interest.name for interest in self.p2.interests]
-        self.scored_points += count_common_elements(p1_interests, p2_interests)
+        for interest in self.p1.interests:
+            if interest in self.p2.interests:
+                self.scored_points += 1
 
     def compare_languages(self) -> None:
         """Compare languages between two profiles."""
@@ -96,12 +87,9 @@ class CompatibilityCalculator:
             return
 
         self.total_points += 1
-
-        has_common_language: bool = has_common_element(
-            self.p1.languages_list, self.p2.languages_list
-        )
-        if has_common_language:
-            self.scored_points += 1
+        for language in self.p1.languages:
+            if language in self.p2.languages:
+                self.scored_points += 1
 
     def compare_pets(self) -> None:
         """Compare pets between two profiles."""
@@ -110,12 +98,8 @@ class CompatibilityCalculator:
         if self.p1.pets is None and self.p2.pets is None:
             self.scored_points += 1
 
-        elif self.p1.pets and self.p2.pets:
-            has_common_pet: bool = has_common_element(
-                self.p1.pets_list, self.p2.pets_list
-            )
-            if has_common_pet:
-                self.scored_points += 1
+        elif self.p1.pets == self.p2.pets:
+            self.scored_points += 1
 
     def compare_extrovert_level(self) -> None:
         """Compare extrovert level between two profiles."""
