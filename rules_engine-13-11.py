@@ -2,8 +2,11 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, date
 from typing import Optional, List, Union
-from profile import Profile
+from generate_profiles import Profile
 from compatibility import CompatibilityCalculator
+
+# Set random seed
+np.random.seed(42)
 
 # Ensure all arrays have the same length
 num_profiles = 100
@@ -112,7 +115,7 @@ def assign_profiles_to_clusters(profile_ids: Union[int, List[int]] = None) -> No
             clusters[cluster_key].append(profile['user_id'])
 
     for cluster_key, user_ids in clusters.items():
-        print(f"Cluster {cluster_key}: {user_ids}")
+        print(f"Cluster {cluster_key}: {user_ids}")         
         sex_prefs_in_cluster = set(profiles[profiles['user_id'].isin(user_ids)]['sex_living_preference'])
         genders_in_cluster = list(sex_prefs_in_cluster)[0]
         print(f"Sex living preferences in cluster {cluster_key}: {sex_prefs_in_cluster}")
@@ -142,3 +145,7 @@ for cluster_key, user_ids in clusters.items():
     if len(user_ids) > 3:
         score_profiles_in_cluster(cluster_key, user_ids)
         break
+    
+for profile_obj in profile_objects:
+    if profile_obj.user_id in [1, 17, 33, 36, 54, 78, 82]:
+        print(f"user_id: {profile_obj.user_id} sex_living_preferences: {profile_obj.sex_living_preference} gender: {profile_obj.gender}")
