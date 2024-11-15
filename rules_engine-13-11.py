@@ -99,14 +99,14 @@ def assign_profiles_to_clusters(profile_ids: Union[int, List[int]] = None) -> No
         # Adjust clustering logic to handle sex_living_preference
         sex_pref = profile['sex_living_preference']
         if sex_pref == "Both":
-            cluster_keys = [
+            cluster_keys_list = [
                 (profile['rent_location_preference'], profile['roommate_count_preference'], "Male"),
                 (profile['rent_location_preference'], profile['roommate_count_preference'], "Female")
             ]
         else:
-            cluster_keys = [(profile['rent_location_preference'], profile['roommate_count_preference'], sex_pref)]
+            cluster_keys_list = [(profile['rent_location_preference'], profile['roommate_count_preference'], sex_pref)]
 
-        for cluster_key in cluster_keys:
+        for cluster_key in cluster_keys_list:
             if cluster_key not in clusters:
                 clusters[cluster_key] = []
             clusters[cluster_key].append(profile['user_id'])
@@ -114,7 +114,7 @@ def assign_profiles_to_clusters(profile_ids: Union[int, List[int]] = None) -> No
     for cluster_key, user_ids in clusters.items():
         print(f"Cluster {cluster_key}: {user_ids}")
         sex_prefs_in_cluster = set(profiles[profiles['user_id'].isin(user_ids)]['sex_living_preference'])
-        genders_in_cluster = set(profiles[profiles['user_id'].isin(user_ids)]['gender'])
+        genders_in_cluster = list(sex_prefs_in_cluster)[0]
         print(f"Sex living preferences in cluster {cluster_key}: {sex_prefs_in_cluster}")
         print(f"Genders in cluster {cluster_key}: {genders_in_cluster}")
         print(" ")
