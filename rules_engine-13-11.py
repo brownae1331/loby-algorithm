@@ -2,18 +2,25 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, date
 from typing import Optional, List, Union
+
+from matplotlib.style.core import available
+
 from profile import Profile
 from compatibility import CompatibilityCalculator
 
 # Ensure all arrays have the same length
-num_profiles = 100
+num_profiles = 500
+
+# Generate a range of dates for the year 2024
+date_range = pd.date_range("2024-06-01", "2024-12-31")
+
 
 # Example profile data
 profiles = pd.DataFrame({
     "user_id": range(1, num_profiles + 1),
     "first_name": np.random.choice(["John", "Jane", "Alice", "Bob"], num_profiles),
     "last_name": np.random.choice(["Doe", "Smith", "Johnson", "Williams"], num_profiles),
-    "birth_date": pd.to_datetime(np.random.choice(pd.date_range("1980-01-01", "2005-12-31"), num_profiles)),
+    "birth_date": pd.to_datetime(np.random.choice(pd.date_range("1995-01-01", "2006-12-31"), num_profiles)),
     "is_verified": np.random.choice([True, False], num_profiles),
     "gender": np.random.choice(["M", "F"], num_profiles),
     "description": np.random.choice([None, "Loves hiking", "Enjoys cooking", "Avid reader"], num_profiles),
@@ -31,11 +38,11 @@ profiles = pd.DataFrame({
     "cleanliness_level": np.random.randint(1, 10, num_profiles),
     "partying_level": np.random.randint(1, 10, num_profiles),
     "sex_living_preference": np.random.choice(["Male", "Female", "Both"], num_profiles),
-    "rent_location_preference": np.random.choice([None, "NW", "SW", "NE", "SE"], num_profiles),
+    "rent_location_preference": np.random.choice(["London", "Bath", "Leeds", "Oxford"], num_profiles),
     "age_preference": [(18, 25) for _ in range(num_profiles)],
-    "rent_budget": [(800, 1500) for _ in range(num_profiles)],
+    "rent_budget": [(np.random.randint(500, 700), np.random.randint(700, 1000)) for _ in range(num_profiles)],
     "last_filter_processed_at": pd.to_datetime(np.random.choice(pd.date_range("2023-01-01", "2023-12-31"), num_profiles)),
-    "available_at": np.random.choice([None, "2024-01-01", "2024-06-01"], num_profiles),
+    "available_at": np.random.choice(date_range.strftime('%Y-%m'), num_profiles),
     "roommate_count_preference": np.random.choice([1, 2, 3], num_profiles),
     "interests": [np.random.choice(["Reading", "Traveling", "Cooking", "Sports"], np.random.randint(1, 4)).tolist() for _ in range(num_profiles)]
 })
@@ -96,15 +103,11 @@ def assign_profiles_to_clusters(profile_ids: Union[int, List[int]] = None) -> No
 
     clusters = {}
     for _, profile in selected_profiles.iterrows():
-        # Adjust clustering logic to handle sex_living_preference
-        sex_pref = profile['sex_living_preference']
-        if sex_pref == "Both":
-            cluster_keys = [
-                (profile['rent_location_preference'], profile['roommate_count_preference'], "Male"),
-                (profile['rent_location_preference'], profile['roommate_count_preference'], "Female")
-            ]
-        else:
-            cluster_keys = [(profile['rent_location_preference'], profile['roommate_count_preference'], sex_pref)]
+
+        location = profile['rent_location_preference']
+        available_at = profile['available_at']
+
+        cluster_keys = [(available_at, location)]
 
         for cluster_key in cluster_keys:
             if cluster_key not in clusters:
@@ -113,15 +116,48 @@ def assign_profiles_to_clusters(profile_ids: Union[int, List[int]] = None) -> No
 
     for cluster_key, user_ids in clusters.items():
         print(f"Cluster {cluster_key}: {user_ids}")
-        sex_prefs_in_cluster = set(profiles[profiles['user_id'].isin(user_ids)]['sex_living_preference'])
+        budget_pref = set(profiles[profiles['user_id'].isin(user_ids)]['rent_budget'])
         genders_in_cluster = set(profiles[profiles['user_id'].isin(user_ids)]['gender'])
-        print(f"Sex living preferences in cluster {cluster_key}: {sex_prefs_in_cluster}")
-        print(f"Genders in cluster {cluster_key}: {genders_in_cluster}")
+        print(f"budget {cluster_key}: {budget_pref}")
         print(" ")
 
 
 # Example usage: Assign all profiles to clusters
 assign_profiles_to_clusters()
+
+def assign_sub_clusters(profile_ids: Union[int, List[int]] = None) -> None:
+    """Assign profiles to sub-clusters based on age, gender, and budget."""
+    global clusters, sub_clusters
+    sub_clusters = {}
+
+    if profile_ids is None:
+        selected_profiles = profiles
+    else:
+        if isinstance(profile_ids, int):
+            profile_ids = [profile_ids]
+        selected_profiles = profiles[profiles['user_id'].isin(profile_ids)]
+
+    for cluster_key, user_ids in clusters.items():
+        sub_clusters[cluster_key] = {}
+        for user_id in user_ids:
+            profile = selected_profiles[selected_profiles['user_id'] == user_id].iloc[0]
+            age = calculate_age(profile['birth_date'])
+            gender = profile['gender']
+            budget = profile['rent_budget'][0]  # Assuming rent_budget is a tuple (min, max)
+
+            sub_cluster_key = (f"{age - 3}-{age + 3}", gender, f"{budget - 100}-{budget + 100}")
+            if sub_cluster_key not in sub_clusters[cluster_key]:
+                sub_clusters[cluster_key][sub_cluster_key] = []
+            sub_clusters[cluster_key][sub_cluster_key].append(user_id)
+
+    for cluster_key, sub_cluster in sub_clusters.items():
+        print(f"Cluster {cluster_key}:")
+        for sub_cluster_key, user_ids in sub_cluster.items():
+            print(f"  Sub-cluster {sub_cluster_key}: {user_ids}")
+        print(" ")
+
+
+assign_sub_clusters()
 
 def score_profiles_in_cluster(cluster_key, user_ids):
     """Score profiles within a cluster."""
@@ -136,6 +172,7 @@ def score_profiles_in_cluster(cluster_key, user_ids):
             calculator = CompatibilityCalculator(p1, p2)
             score = calculator.calculate()
             print(f"Score between user {user_ids[i]} and user {user_ids[j]}: {score}")
+
 
 # Find a cluster with more than 3 users
 for cluster_key, user_ids in clusters.items():
