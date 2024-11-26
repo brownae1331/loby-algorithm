@@ -5,7 +5,7 @@ from typing import Optional, List, Union
 
 from matplotlib.style.core import available
 
-from profile import Profile
+from generate_profiles import Profile
 from compatibility import CompatibilityCalculator
 
 # Ensure all arrays have the same length
