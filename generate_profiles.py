@@ -38,3 +38,16 @@ class Profile:
         self.available_at = available_at
         self.roommate_count_preference = roommate_count_preference
         self.interests = interests
+
+        self.budget_weight = 4
+        self.age_similarity_weight = 4
+        self.origin_country_weight = 1.4
+        self.course_weight = 1.3
+        self.occupation_weight = 1.5
+        self.work_industry_weight = 1.3
+        self.smoking_weight = 1.2
+        self.activity_hours_weight = 1
+
+        #implement the weights in the class
+
+        self.likes = []

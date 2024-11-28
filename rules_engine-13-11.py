@@ -235,18 +235,76 @@ def compare_activity_hours(starting_activity_hours, target_activity_hours):
     return 0
 
 
+def generate_likes(current_profile, profile_list):
+    #print("Total number of profiles is " + len(profile_list))
+    for i in range(10):
+        liked_profile = int(input("Enter the profile for Alex: "))
+        current_profile.likes.append(profile_list[liked_profile])
+
+for profile in profile_list:
+    target_profile_age = calculate_age(profile.birth_date)
+    age_similarity_score = calculate_age_similarity_score(starting_profile_age, target_profile_age)
+    origin_score =  compare_origin_country(starting_profile.origin_country, profile.origin_country)
+    budget_score = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget)
+
+    print(f"list_id: {profile_list.index(profile)}, User ID: {profile.user_id}, Age: {target_profile_age}, Age Similarity Score: {age_similarity_score:.2f}, Origin Similarity Score: {origin_score}, Budget Similarity score: {budget_score}")
+
+generate_likes(starting_profile, profile_list)
+
+def modify_weights(current_profile):
+    """Modify the weights of the current profile based on the attributes of liked profiles."""
+    # Initialize counters for each attribute
+    attribute_counters = {
+        'budget_weight': 0,
+        'age_similarity_weight': 0,
+        'origin_country_weight': 0,
+        'course_weight': 0,
+        'occupation_weight': 0,
+        'work_industry_weight': 0,
+        'smoking_weight': 0,
+        'activity_hours_weight': 0
+    }
+
+    # Count the occurrences of each attribute in the liked profiles
+    for liked_profile in current_profile.likes:
+        attribute_counters['budget_weight'] += 1  if calculate_budget_overlap_score(current_profile.rent_budget, liked_profile.rent_budget) > 0.5 else 0
+        attribute_counters['age_similarity_weight'] += 1 if calculate_age_similarity_score(calculate_age(current_profile.birth_date), calculate_age(liked_profile.birth_date)) else 0
+        attribute_counters['origin_country_weight'] += 1 if liked_profile.origin_country == current_profile.origin_country else 0
+        attribute_counters['course_weight'] += 1 if liked_profile.course == current_profile.course else 0
+        attribute_counters['occupation_weight'] += 1 if liked_profile.occupation == current_profile.occupation else 0
+        attribute_counters['work_industry_weight'] += 1 if liked_profile.work_industry == current_profile.work_industry else 0
+        attribute_counters['smoking_weight'] += 1 if liked_profile.smoking == current_profile.smoking else 0
+        attribute_counters['activity_hours_weight'] += 1 if liked_profile.activity_hours == current_profile.activity_hours else 0
+
+    # Adjust the weights based on the counts
+    total_likes = len(current_profile.likes)
+    if total_likes > 0:
+        current_profile.budget_weight += attribute_counters['budget_weight'] / total_likes
+        current_profile.age_similarity_weight += attribute_counters['age_similarity_weight'] / total_likes
+        current_profile.origin_country_weight += attribute_counters['origin_country_weight'] / total_likes
+        current_profile.course_weight += attribute_counters['course_weight'] / total_likes
+        current_profile.occupation_weight += attribute_counters['occupation_weight'] / total_likes
+        current_profile.work_industry_weight += attribute_counters['work_industry_weight'] / total_likes
+        current_profile.smoking_weight += attribute_counters['smoking_weight'] / total_likes
+        current_profile.activity_hours_weight += attribute_counters['activity_hours_weight'] / total_likes
+
+    return current_profile
+
+# Example usage
+current_profile = modify_weights(starting_profile)
+
 def calculate_overall_score(profile):
     """
     Calculate the overall score for a profile by calling all the comparison functions and summing their weighted scores.
     """
-    budget_overlap_score = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * 4
-    age_similarity_score = calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * 4
-    origin_country_score = compare_origin_country(starting_profile.origin_country, profile.origin_country) * 1.4
-    course_score = compare_course(starting_profile.course, profile.course) * 1.3
-    occupation_score = compare_occupation(starting_profile.occupation, profile.occupation) * 1.5
-    work_industry_score = compare_work_industry(starting_profile.work_industry, profile.work_industry) * 1.3
-    smoking_score = compare_smoking(starting_profile.smoking, profile.smoking) * 1.2
-    activity_hours_score = compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * 1
+    budget_overlap_score = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * profile.budget_weight
+    age_similarity_score = calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
+    origin_country_score = compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
+    course_score = compare_course(starting_profile.course, profile.course) * profile.course_weight
+    occupation_score = compare_occupation(starting_profile.occupation, profile.occupation) * profile.occupation_weight
+    work_industry_score = compare_work_industry(starting_profile.work_industry, profile.work_industry) * profile.work_industry_weight
+    smoking_score = compare_smoking(starting_profile.smoking, profile.smoking) * profile.smoking_weight
+    activity_hours_score = compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
     
     overall_score = (
         budget_overlap_score +
