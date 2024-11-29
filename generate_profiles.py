@@ -9,7 +9,17 @@ class Profile:
                  extrovert_level: int, cleanliness_level: int, partying_level: int, sex_living_preference: str,
                  rent_location_preference: Optional[str], age_preference: Tuple[int, int], rent_budget: Optional[Tuple[int, int]],
                  last_filter_processed_at: Optional[datetime], available_at: Optional[str], roommate_count_preference: Optional[int],
-                 interests: Optional[List[str]]):
+                 interests: Optional[List[str]], budget_weight = 4, age_similarity_weight = 4, origin_country_weight = 1.4, course_weight = 1.3,
+                 occupation_weight = 1.5, work_industry_weight = 1.3, smoking_weight = 1.2, activity_hours_weight = 1, likes = []):
+        self.budget_weight = budget_weight
+        self.age_similarity_weight = age_similarity_weight
+        self.origin_country_weight = origin_country_weight
+        self.course_weight = course_weight
+        self.occupation_weight = occupation_weight
+        self.work_industry_weight = work_industry_weight
+        self.smoking_weight = smoking_weight
+        self.activity_hours_weight = activity_hours_weight
+
         self.user_id = user_id
         self.first_name = first_name
         self.last_name = last_name
@@ -39,15 +49,6 @@ class Profile:
         self.roommate_count_preference = roommate_count_preference
         self.interests = interests
 
-        self.budget_weight = 4
-        self.age_similarity_weight = 4
-        self.origin_country_weight = 1.4
-        self.course_weight = 1.3
-        self.occupation_weight = 1.5
-        self.work_industry_weight = 1.3
-        self.smoking_weight = 1.2
-        self.activity_hours_weight = 1
-
         #implement the weights in the class
 
-        self.likes = []
+        self.likes = likes

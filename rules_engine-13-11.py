@@ -276,17 +276,24 @@ def modify_weights(current_profile):
         attribute_counters['smoking_weight'] += 1 if liked_profile.smoking == current_profile.smoking else 0
         attribute_counters['activity_hours_weight'] += 1 if liked_profile.activity_hours == current_profile.activity_hours else 0
 
-    # Adjust the weights based on the counts
     total_likes = len(current_profile.likes)
     if total_likes > 0:
-        current_profile.budget_weight += attribute_counters['budget_weight'] / total_likes
-        current_profile.age_similarity_weight += attribute_counters['age_similarity_weight'] / total_likes
-        current_profile.origin_country_weight += attribute_counters['origin_country_weight'] / total_likes
-        current_profile.course_weight += attribute_counters['course_weight'] / total_likes
-        current_profile.occupation_weight += attribute_counters['occupation_weight'] / total_likes
-        current_profile.work_industry_weight += attribute_counters['work_industry_weight'] / total_likes
-        current_profile.smoking_weight += attribute_counters['smoking_weight'] / total_likes
-        current_profile.activity_hours_weight += attribute_counters['activity_hours_weight'] / total_likes
+        current_profile.budget_weight += attribute_counters['budget_weight'] / total_likes if attribute_counters[
+                                                                                                  'budget_weight'] > total_likes/4 else -1/ total_likes
+        current_profile.age_similarity_weight += attribute_counters['age_similarity_weight'] / total_likes if \
+        attribute_counters['age_similarity_weight'] > total_likes/4 else -1/ total_likes
+        current_profile.origin_country_weight += attribute_counters['origin_country_weight'] / total_likes if \
+        attribute_counters['origin_country_weight'] > total_likes/4 else -1/ total_likes
+        current_profile.course_weight += attribute_counters['course_weight'] / total_likes if attribute_counters[
+                                                                                                  'course_weight'] > total_likes/4 else -1/ total_likes
+        current_profile.occupation_weight += attribute_counters['occupation_weight'] / total_likes if \
+        attribute_counters['occupation_weight'] > total_likes/4 else -1/ total_likes
+        current_profile.work_industry_weight += attribute_counters['work_industry_weight'] / total_likes if \
+        attribute_counters['work_industry_weight'] > total_likes/4 else -1/ total_likes
+        current_profile.smoking_weight += attribute_counters['smoking_weight'] / total_likes if attribute_counters[
+                                                                                                    'smoking_weight'] > total_likes/4 else -1/ total_likes
+        current_profile.activity_hours_weight += attribute_counters['activity_hours_weight'] / total_likes if \
+        attribute_counters['activity_hours_weight'] > total_likes/4 else -1/ total_likes
 
     return current_profile
 
