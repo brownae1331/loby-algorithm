@@ -3,8 +3,9 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Union
 
+
 from generate_profiles import Profile
-from compatibility import CompatibilityCalculator
+
 
 np.random.seed(42)
 
@@ -145,14 +146,7 @@ def assign_profiles_to_profile_list(profile_ids: Union[int, List[int]] = None):
                     profile_list.append(profile)
         
 assign_profiles_to_profile_list()
-print(f"Number of profiles assigned: {len(profile_list)}")
 
-# Display details of assigned profiles to verify
-for profile in profile_list:  # Display only the first 5 profiles for brevity
-    age = calculate_age(profile.birth_date)
-    print(f"User ID: {profile.user_id}, Age: {age}, Budget Range: {profile.rent_budget}, Move-in Date: {profile.available_at}, City: {profile.rent_location_preference}, Gender: {profile.gender}, Gender_living_preference: {profile.sex_living_preference}")
-    
-    
 def calculate_budget_overlap_score(starting_budget, target_budget):
     """
     Calculate a budget overlap score between the starting profile budget and a target profile budget.
@@ -175,13 +169,6 @@ def calculate_budget_overlap_score(starting_budget, target_budget):
     
     # Return score based on overlap proportion
     return overlap_length / (start_max - start_min) if start_max - start_min > 0 else 0.0
-
-# Calculate and display budget overlap scores for all profiles in profile_list
-print("\nBudget Overlap Scores:\n")
-for profile in profile_list:
-    score = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget)
-    print(f"User ID: {profile.user_id}, Budget Range: {profile.rent_budget}, Budget Overlap Score: {score:.2f}")
-    
     
 def calculate_age_similarity_score(starting_age, target_age):
     """
@@ -191,14 +178,6 @@ def calculate_age_similarity_score(starting_age, target_age):
     age_difference = abs(starting_age - target_age)
     score = 1 - (1 / 15) * (age_difference ** 2)
     return max(0.0, min(1.0, score))  # Ensure the score is between 0 and 1
-
-# Calculate and display age similarity scores for all profiles in profile_list
-print("\nAge Similarity Scores:\n")
-starting_profile_age = calculate_age(starting_profile.birth_date)
-for profile in profile_list:
-    target_profile_age = calculate_age(profile.birth_date)
-    age_similarity_score = calculate_age_similarity_score(starting_profile_age, target_profile_age)
-    print(f"User ID: {profile.user_id}, Age: {target_profile_age}, Age Similarity Score: {age_similarity_score:.2f}")
 
 def compare_origin_country(starting_origin_country, target_origin_country):
     """Compare origin country between profiles."""
@@ -234,71 +213,115 @@ def compare_activity_hours(starting_activity_hours, target_activity_hours):
         return 1
     return 0
 
-
 def generate_likes(current_profile, profile_list):
-    #print("Total number of profiles is " + len(profile_list))
-    for i in range(10):
-        liked_profile = int(input("Enter the profile for Alex: "))
-        current_profile.likes.append(profile_list[liked_profile])
+    print("\nAvailable profiles:")
+    for profile in profile_list:
+        budget_score = calculate_budget_overlap_score(current_profile.rent_budget, profile.rent_budget)
+        age_score = calculate_age_similarity_score(calculate_age(current_profile.birth_date), calculate_age(profile.birth_date))
+        country_score = compare_origin_country(current_profile.origin_country, profile.origin_country)
+        smoking_score = compare_smoking(current_profile.smoking, profile.smoking)
+        occupation_score = compare_occupation(current_profile.occupation, profile.occupation)
+        industry_score = compare_work_industry(current_profile.work_industry, profile.work_industry)
+        
+        print(f"ID: {profile.user_id}, Budget: {budget_score:.2f}, Age: {age_score:.2f}, Country: {country_score:.1f}, Smoking: {smoking_score:.1f}, Occupation: {occupation_score:.1f}, Industry: {industry_score:.1f}")
+    
+    for i in range(5):
+        user_id = int(input("Enter the User ID for Alex to like: "))
+        # Find the profile with the given user ID
+        liked_profile = next((p for p in profile_list if p.user_id == user_id), None)
+        if liked_profile:
+            current_profile.likes.append(liked_profile)
+        else:
+            print(f"No profile found with User ID: {user_id}")
 
-for profile in profile_list:
-    target_profile_age = calculate_age(profile.birth_date)
-    age_similarity_score = calculate_age_similarity_score(starting_profile_age, target_profile_age)
-    origin_score =  compare_origin_country(starting_profile.origin_country, profile.origin_country)
-    budget_score = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget)
+def modify_weights_with_weighted_average(current_profile, learning_rate=0.1):
+    """
+    Modify weights using weighted averages and a learning rate.
+    """
+    total_likes = len(current_profile.likes)
+    if total_likes == 0:
+        return current_profile
 
-    print(f"list_id: {profile_list.index(profile)}, User ID: {profile.user_id}, Age: {target_profile_age}, Age Similarity Score: {age_similarity_score:.2f}, Origin Similarity Score: {origin_score}, Budget Similarity score: {budget_score}")
-
-generate_likes(starting_profile, profile_list)
-
-def modify_weights(current_profile):
-    """Modify the weights of the current profile based on the attributes of liked profiles."""
-    # Initialize counters for each attribute
-    attribute_counters = {
-        'budget_weight': 0,
-        'age_similarity_weight': 0,
-        'origin_country_weight': 0,
-        'course_weight': 0,
-        'occupation_weight': 0,
-        'work_industry_weight': 0,
-        'smoking_weight': 0,
-        'activity_hours_weight': 0
+    # Initialize average scores for each attribute
+    avg_scores = {
+        'budget_weight': 0.0,
+        'age_similarity_weight': 0.0,
+        'origin_country_weight': 0.0,
+        'course_weight': 0.0,
+        'occupation_weight': 0.0,
+        'work_industry_weight': 0.0,
+        'smoking_weight': 0.0,
+        'activity_hours_weight': 0.0
     }
 
-    # Count the occurrences of each attribute in the liked profiles
+    # Calculate average scores from liked profiles
     for liked_profile in current_profile.likes:
-        attribute_counters['budget_weight'] += 1  if calculate_budget_overlap_score(current_profile.rent_budget, liked_profile.rent_budget) > 0.5 else 0
-        attribute_counters['age_similarity_weight'] += 1 if calculate_age_similarity_score(calculate_age(current_profile.birth_date), calculate_age(liked_profile.birth_date)) else 0
-        attribute_counters['origin_country_weight'] += 1 if liked_profile.origin_country == current_profile.origin_country else 0
-        attribute_counters['course_weight'] += 1 if liked_profile.course == current_profile.course else 0
-        attribute_counters['occupation_weight'] += 1 if liked_profile.occupation == current_profile.occupation else 0
-        attribute_counters['work_industry_weight'] += 1 if liked_profile.work_industry == current_profile.work_industry else 0
-        attribute_counters['smoking_weight'] += 1 if liked_profile.smoking == current_profile.smoking else 0
-        attribute_counters['activity_hours_weight'] += 1 if liked_profile.activity_hours == current_profile.activity_hours else 0
+        avg_scores['budget_weight'] += calculate_budget_overlap_score(
+            current_profile.rent_budget, liked_profile.rent_budget)
+        avg_scores['age_similarity_weight'] += calculate_age_similarity_score(
+            calculate_age(current_profile.birth_date), 
+            calculate_age(liked_profile.birth_date))
+        avg_scores['origin_country_weight'] += compare_origin_country(
+            current_profile.origin_country, liked_profile.origin_country)
+        avg_scores['course_weight'] += compare_course(
+            current_profile.course, liked_profile.course)
+        avg_scores['occupation_weight'] += compare_occupation(
+            current_profile.occupation, liked_profile.occupation)
+        avg_scores['work_industry_weight'] += compare_work_industry(
+            current_profile.work_industry, liked_profile.work_industry)
+        avg_scores['smoking_weight'] += compare_smoking(
+            current_profile.smoking, liked_profile.smoking)
+        avg_scores['activity_hours_weight'] += compare_activity_hours(
+            current_profile.activity_hours, liked_profile.activity_hours)
 
-    total_likes = len(current_profile.likes)
-    if total_likes > 0:
-        current_profile.budget_weight += attribute_counters['budget_weight'] / total_likes if attribute_counters[
-                                                                                                  'budget_weight'] > total_likes/4 else -1/ total_likes
-        current_profile.age_similarity_weight += attribute_counters['age_similarity_weight'] / total_likes if \
-        attribute_counters['age_similarity_weight'] > total_likes/4 else -1/ total_likes
-        current_profile.origin_country_weight += attribute_counters['origin_country_weight'] / total_likes if \
-        attribute_counters['origin_country_weight'] > total_likes/4 else -1/ total_likes
-        current_profile.course_weight += attribute_counters['course_weight'] / total_likes if attribute_counters[
-                                                                                                  'course_weight'] > total_likes/4 else -1/ total_likes
-        current_profile.occupation_weight += attribute_counters['occupation_weight'] / total_likes if \
-        attribute_counters['occupation_weight'] > total_likes/4 else -1/ total_likes
-        current_profile.work_industry_weight += attribute_counters['work_industry_weight'] / total_likes if \
-        attribute_counters['work_industry_weight'] > total_likes/4 else -1/ total_likes
-        current_profile.smoking_weight += attribute_counters['smoking_weight'] / total_likes if attribute_counters[
-                                                                                                    'smoking_weight'] > total_likes/4 else -1/ total_likes
-        current_profile.activity_hours_weight += attribute_counters['activity_hours_weight'] / total_likes if \
-        attribute_counters['activity_hours_weight'] > total_likes/4 else -1/ total_likes
+    # Calculate averages
+    for key in avg_scores:
+        avg_scores[key] /= total_likes
+
+    # Define baseline threshold for significant preference
+    PREFERENCE_THRESHOLD = 0.5
+
+    # Adjust weights based on average scores
+    for key in avg_scores:
+        current_score = avg_scores[key]
+        current_weight = getattr(current_profile, key)
+        
+        # Calculate weight adjustment
+        if current_score > PREFERENCE_THRESHOLD:
+            weight_adjustment = learning_rate * (current_score - PREFERENCE_THRESHOLD)
+        else:
+            weight_adjustment = -learning_rate * (PREFERENCE_THRESHOLD - current_score)
+
+        # Apply weight adjustment with lower bounds
+        new_weight = current_weight + weight_adjustment
+        new_weight = max(0.05, min(2.0, new_weight))
+        
+        setattr(current_profile, key, new_weight)
 
     return current_profile
 
+def print_weights(profile, title):
+    print(f"\n{title} Weights:")
+    print(f"Budget Weight: {profile.budget_weight}")
+    print(f"Age Similarity Weight: {profile.age_similarity_weight}")
+    print(f"Origin Country Weight: {profile.origin_country_weight}")
+    print(f"Course Weight: {profile.course_weight}")
+    print(f"Occupation Weight: {profile.occupation_weight}")
+    print(f"Work Industry Weight: {profile.work_industry_weight}")
+    print(f"Smoking Weight: {profile.smoking_weight}")
+    print(f"Activity Hours Weight: {profile.activity_hours_weight}")
+
 # Example usage
-current_profile = modify_weights(starting_profile)
+print_weights(starting_profile, "Initial")
+
+# Generate likes and modify weights with new method
+generate_likes(starting_profile, profile_list)
+current_profile = modify_weights_with_weighted_average(
+    starting_profile, 
+    learning_rate=0.1
+)
+
+print_weights(current_profile, "Updated")
 
 def calculate_overall_score(profile):
     """
@@ -326,19 +349,63 @@ def calculate_overall_score(profile):
     
     return overall_score
 
-# Calculate and display overall scores for all profiles in profile_list
-print("\nOverall Scores:\n")
+def print_weights(profile, title):
+    print(f"\n{title} Weights:")
+    print(f"Budget Weight: {profile.budget_weight}")
+    print(f"Age Similarity Weight: {profile.age_similarity_weight}")
+    print(f"Origin Country Weight: {profile.origin_country_weight}")
+    print(f"Course Weight: {profile.course_weight}")
+    print(f"Occupation Weight: {profile.occupation_weight}")
+    print(f"Work Industry Weight: {profile.work_industry_weight}")
+    print(f"Smoking Weight: {profile.smoking_weight}")
+    print(f"Activity Hours Weight: {profile.activity_hours_weight}")
+
+def print_sorted_profiles_by_score(overall_scores_sorted):
+    print("\nProfiles sorted by compatibility scores:")
+    for profile, score in overall_scores_sorted:
+        print(f"User ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, Score: {score}")
+
+# Print initial weights
+print_weights(starting_profile, "Initial")
+
+# Generate likes and modify weights
+generate_likes(starting_profile, profile_list)
+current_profile = modify_weights_with_weighted_average(starting_profile)
+
+# Print updated weights
+print_weights(current_profile, "Updated")
+
+# Calculate and sort profiles by compatibility
 overall_scores = []
 for profile in profile_list:
     overall_score = calculate_overall_score(profile)
     overall_scores.append((profile, overall_score))
-    print(f"User ID: {profile.user_id}, Overall Score: {overall_score:.2f}")
-    
+
 # Sort profiles by overall score from highest to lowest
 overall_scores_sorted = sorted(overall_scores, key=lambda x: x[1], reverse=True)
 
-# Display sorted profiles
-print("\nProfiles sorted by Overall Score:\n")
-for profile, score in overall_scores_sorted:
-    print(f"User ID: {profile.user_id}, Overall Score: {score:.2f}")
+# Print sorted profiles by score
+print_sorted_profiles_by_score(overall_scores_sorted)
+
+# Convert the sorted profiles into a DataFrame
+profiles_data = [{
+    'Score': score,
+    'Profile ID': profile.user_id,
+    'Name': f"{profile.first_name} {profile.last_name}",
+    'Age': calculate_age(profile.birth_date),
+    'Origin Country': profile.origin_country,
+    'Occupation': profile.occupation,
+    'Work Industry': profile.work_industry,
+    'Course': profile.course,
+    'Activity Hours': profile.activity_hours,
+    'Smoking': profile.smoking,
+    'Rent Budget': str(profile.rent_budget)  # Convert tuple to string
+} for profile, score in overall_scores_sorted]
+
+results_df = pd.DataFrame(profiles_data)
+
+# Export to Excel
+results_df.to_excel('profile_matches.xlsx', index=False)
+print("Results have been exported to 'profile_matches.xlsx'")
+
     
