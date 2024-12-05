@@ -55,6 +55,8 @@ def run():
     overall_scores_sorted = sorted(overall_scores, key=lambda x: x[1], reverse=True)
     print_sorted_profiles_by_score(overall_scores_sorted)
 
+
+    # ALL CODE ABOVE HERE
     profiles_data = [{
         'Score': score,
         'Profile ID': profile.user_id,
