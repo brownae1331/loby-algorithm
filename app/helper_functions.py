@@ -85,6 +85,8 @@ class ComparisonFunctions:
     @staticmethod
     def compare_smoking(attr1, attr2) -> float:
         """Compare smoking preferences between profiles."""
+        if attr1 is None or attr2 is None:
+            return 0
         return float(attr1 == attr2)
 
     @staticmethod
@@ -110,12 +112,14 @@ def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> Non
         industry_score = ComparisonFunctions.compare_work_industry(current_profile.work_industry, profile.work_industry)
         
         print(f"ID: {profile.user_id}, Budget: {budget_score:.2f}, Age: {age_score:.2f}, Country: {country_score:.1f}, Smoking: {smoking_score:.1f}, Occupation: {occupation_score:.1f}, Industry: {industry_score:.1f}")
-    
-    for i in range(5):
+
+    profiles_liked = 0
+    while profiles_liked != 5:
         user_id = int(input("Enter the User ID for Alex to like: "))
         # Find the profile with the given user ID
         liked_profile = next((p for p in profile_list if p.user_id == user_id), None)
         if liked_profile:
+            profiles_liked += 1
             current_profile.likes.append(liked_profile)
         else:
             print(f"No profile found with User ID: {user_id}") 
