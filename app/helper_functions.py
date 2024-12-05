@@ -1,114 +1,111 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime, date, timedelta
-from typing import Optional, List, Union, Tuple
+from typing import Optional, List, Union, Tuple, Any
 
 
 from generate_profiles import Profile
 
+# Define baseline threshold for significant preference
+PREFERENCE_THRESHOLD = 0.5
 
-def print_weights(profile: Profile, title: str):
-    print(f"\n{title} Weights:")
-    print(f"Budget Weight: {profile.budget_weight}")
-    print(f"Age Similarity Weight: {profile.age_similarity_weight}")
-    print(f"Origin Country Weight: {profile.origin_country_weight}")
-    print(f"Course Weight: {profile.course_weight}")
-    print(f"Occupation Weight: {profile.occupation_weight}")
-    print(f"Work Industry Weight: {profile.work_industry_weight}")
-    print(f"Smoking Weight: {profile.smoking_weight}")
-    print(f"Activity Hours Weight: {profile.activity_hours_weight}")
+class PrintFunctions:
+    @staticmethod
+    def print_weights(profile: Profile, title: str) -> None:
+        print(f"\n{title} Weights:")
+        print(f"Budget Weight: {profile.budget_weight}")
+        print(f"Age Similarity Weight: {profile.age_similarity_weight}")
+        print(f"Origin Country Weight: {profile.origin_country_weight}")
+        print(f"Course Weight: {profile.course_weight}")
+        print(f"Occupation Weight: {profile.occupation_weight}")
+        print(f"Work Industry Weight: {profile.work_industry_weight}")
+        print(f"Smoking Weight: {profile.smoking_weight}")
+        print(f"Activity Hours Weight: {profile.activity_hours_weight}")
 
-
-def calculate_budget_overlap_score(starting_budget, target_budget):
-    """
-    Calculate a budget overlap score between the starting profile budget and a target profile budget.
-    The score is 1 if the budgets completely overlap, 0 if there's no overlap, and between 0 and 1 for partial overlap.
-    """
-    start_min, start_max = starting_budget
-    target_min, target_max = target_budget
-    
-    # Calculate overlap range
-    overlap_min = max(start_min, target_min)
-    overlap_max = min(start_max, target_max)
-    
-    # If there's no overlap
-    if overlap_min > overlap_max:
-        return 0.0
-    
-    # Calculate overlap length and total possible range
-    overlap_length = overlap_max - overlap_min
-    total_length = max(start_max, target_max) - min(start_min, target_min)
-    
-    # Return score based on overlap proportion
-    return overlap_length / (start_max - start_min) if start_max - start_min > 0 else 0.0
-    
-
-def calculate_age_similarity_score(starting_age, target_age):
-    """
-    Calculate an age similarity score between the starting profile age and a target profile age.
-    The score is calculated using the function y = 1 - (1/15) * x^2, where y is the score and x is the age difference.
-    """
-    age_difference = abs(starting_age - target_age)
-    score = 1 - (1 / 15) * (age_difference ** 2)
-    return max(0.0, min(1.0, score))  # Ensure the score is between 0 and 1
+    @staticmethod
+    def print_sorted_profiles_by_score(overall_scores_sorted: List[Tuple[Profile, float]]) -> None:
+        print("\nProfiles sorted by compatibility scores:")
+        for profile, score in overall_scores_sorted:
+            print(f"User ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, Score: {score}")
 
 
-def compare_origin_country(starting_origin_country, target_origin_country):
-    """Compare origin country between profiles."""
-    if starting_origin_country == target_origin_country:
-        return 1
-    return 0
+class CalculateScoreFunctions:
+    @staticmethod
+    def calculate_budget_overlap_score(starting_budget: Tuple[int, int], target_budget: Tuple[int, int]) -> float:
+        """
+        Calculate a budget overlap score between the starting profile budget and a target profile budget.
+        The score is 1 if the budgets completely overlap, 0 if there's no overlap, and between 0 and 1 for partial overlap.
+        """
+        start_min, start_max = starting_budget
+        target_min, target_max = target_budget
+        
+        # If there's no overlap
+        if start_max < target_min or target_max < start_min:
+            return 0.0
+        
+        # Calculate overlap length
+        overlap_length = min(start_max, target_max) - max(start_min, target_min)
+        budget_range = start_max - start_min
+        
+        return overlap_length / budget_range if budget_range > 0 else 0.0
+
+    @staticmethod
+    def calculate_age_similarity_score(starting_age: int, target_age: int) -> float:
+        """
+        Calculate an age similarity score between the starting profile age and a target profile age.
+        The score is calculated using the function y = 1 - (1/15) * x^2, where y is the score and x is the age difference.
+        """
+        age_difference = abs(starting_age - target_age)
+        return max(0.0, min(1.0, 1 - (age_difference ** 2) / 15))
 
 
-def compare_course(starting_course, target_course):
-    """Compare the course between profiles."""
-    if starting_course == target_course:
-        return 1
-    return 0
+class ComparisonFunctions:
+    @staticmethod
+    def compare_origin_country(attr1, attr2) -> float:
+        """Compare origin country between profiles."""
+        return float(attr1 == attr2)
+
+    @staticmethod
+    def compare_course(attr1, attr2) -> float:
+        """Compare the course between profiles."""
+        return float(attr1 == attr2)
+
+    @staticmethod
+    def compare_occupation(attr1, attr2) -> float:
+        """Compare the occupation between profiles."""
+        return float(attr1 == attr2)
+
+    @staticmethod
+    def compare_work_industry(attr1, attr2) -> float:
+        """Compare the work industry between profiles."""
+        return float(attr1 == attr2)
+
+    @staticmethod
+    def compare_smoking(attr1, attr2) -> float:
+        """Compare smoking preferences between profiles."""
+        return float(attr1 == attr2)
+
+    @staticmethod
+    def compare_activity_hours(attr1, attr2) -> float:
+        """Compare activity hours between profiles."""
+        return float(attr1 == attr2)
 
 
-def compare_occupation(starting_occupation, target_occupation):
-    """Compare the occupation between profiles."""
-    if starting_occupation == target_occupation:
-        return 1
-    return 0
-
-
-def compare_work_industry(starting_work_industry, target_work_industry):
-    """Compare the work industry between profiles."""
-    if starting_work_industry == target_work_industry:
-        return 1
-    return 0
-
-
-def compare_smoking(starting_smoking, target_smoking):
-    if starting_smoking == target_smoking:
-        return 1
-    return 0
-
-
-def compare_activity_hours(starting_activity_hours, target_activity_hours):
-    if starting_activity_hours == target_activity_hours:
-        return 1
-    return 0
-
-
-def calculate_age(birth_date):
+def calculate_age(birth_date: date) -> int:
     """Calculate age from birth date."""
     today = date.today()
     return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
 
-
-def generate_likes(current_profile: Profile, profile_list: List[Profile]):
+def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> None:
     print("\nAvailable profiles:")
     for profile in profile_list:
-        budget_score = calculate_budget_overlap_score(current_profile.rent_budget, profile.rent_budget)
-        age_score = calculate_age_similarity_score(calculate_age(current_profile.birth_date), calculate_age(profile.birth_date))
-        country_score = compare_origin_country(current_profile.origin_country, profile.origin_country)
-        smoking_score = compare_smoking(current_profile.smoking, profile.smoking)
-        occupation_score = compare_occupation(current_profile.occupation, profile.occupation)
-        industry_score = compare_work_industry(current_profile.work_industry, profile.work_industry)
+        budget_score = CalculateScoreFunctions.calculate_budget_overlap_score(current_profile.rent_budget, profile.rent_budget)
+        age_score = CalculateScoreFunctions.calculate_age_similarity_score(calculate_age(current_profile.birth_date), calculate_age(profile.birth_date))
+        country_score = ComparisonFunctions.compare_origin_country(current_profile.origin_country, profile.origin_country)
+        smoking_score = ComparisonFunctions.compare_smoking(current_profile.smoking, profile.smoking)
+        occupation_score = ComparisonFunctions.compare_occupation(current_profile.occupation, profile.occupation)
+        industry_score = ComparisonFunctions.compare_work_industry(current_profile.work_industry, profile.work_industry)
         
         print(f"ID: {profile.user_id}, Budget: {budget_score:.2f}, Age: {age_score:.2f}, Country: {country_score:.1f}, Smoking: {smoking_score:.1f}, Occupation: {occupation_score:.1f}, Industry: {industry_score:.1f}")
     
@@ -225,7 +222,7 @@ def initialize_profile_list() -> List[Profile]:
     return profile_objects
 
 
-def modify_weights_with_weighted_average(current_profile, learning_rate=0.1):
+def modify_weights_with_weighted_average(current_profile: Profile, learning_rate: float = 0.1) -> Profile:
     """
     Modify weights using weighted averages and a learning rate.
     """
@@ -247,30 +244,27 @@ def modify_weights_with_weighted_average(current_profile, learning_rate=0.1):
 
     # Calculate average scores from liked profiles
     for liked_profile in current_profile.likes:
-        avg_scores['budget_weight'] += calculate_budget_overlap_score(
+        avg_scores['budget_weight'] += CalculateScoreFunctions.calculate_budget_overlap_score(
             current_profile.rent_budget, liked_profile.rent_budget)
-        avg_scores['age_similarity_weight'] += calculate_age_similarity_score(
+        avg_scores['age_similarity_weight'] += CalculateScoreFunctions.calculate_age_similarity_score(
             calculate_age(current_profile.birth_date), 
             calculate_age(liked_profile.birth_date))
-        avg_scores['origin_country_weight'] += compare_origin_country(
+        avg_scores['origin_country_weight'] += ComparisonFunctions.compare_origin_country(
             current_profile.origin_country, liked_profile.origin_country)
-        avg_scores['course_weight'] += compare_course(
+        avg_scores['course_weight'] += ComparisonFunctions.compare_course(
             current_profile.course, liked_profile.course)
-        avg_scores['occupation_weight'] += compare_occupation(
+        avg_scores['occupation_weight'] += ComparisonFunctions.compare_occupation(
             current_profile.occupation, liked_profile.occupation)
-        avg_scores['work_industry_weight'] += compare_work_industry(
+        avg_scores['work_industry_weight'] += ComparisonFunctions.compare_work_industry(
             current_profile.work_industry, liked_profile.work_industry)
-        avg_scores['smoking_weight'] += compare_smoking(
+        avg_scores['smoking_weight'] += ComparisonFunctions.compare_smoking(
             current_profile.smoking, liked_profile.smoking)
-        avg_scores['activity_hours_weight'] += compare_activity_hours(
+        avg_scores['activity_hours_weight'] += ComparisonFunctions.compare_activity_hours(
             current_profile.activity_hours, liked_profile.activity_hours)
 
     # Calculate averages
     for key in avg_scores:
         avg_scores[key] /= total_likes
-
-    # Define baseline threshold for significant preference
-    PREFERENCE_THRESHOLD = 0.5
 
     # Adjust weights based on average scores
     for key in avg_scores:
@@ -296,14 +290,14 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     """
     Calculate the overall score for a profile by calling all the comparison functions and summing their weighted scores.
     """
-    budget_overlap_score: float = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * profile.budget_weight
-    age_similarity_score: float = calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
-    origin_country_score: float = compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
-    course_score: float = compare_course(starting_profile.course, profile.course) * profile.course_weight
-    occupation_score: float = compare_occupation(starting_profile.occupation, profile.occupation) * profile.occupation_weight
-    work_industry_score: float = compare_work_industry(starting_profile.work_industry, profile.work_industry) * profile.work_industry_weight
-    smoking_score: float = compare_smoking(starting_profile.smoking, profile.smoking) * profile.smoking_weight
-    activity_hours_score: float = compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
+    budget_overlap_score: float = CalculateScoreFunctions.calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * profile.budget_weight
+    age_similarity_score: float = CalculateScoreFunctions.calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
+    origin_country_score: float = ComparisonFunctions.compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
+    course_score: float = ComparisonFunctions.compare_course(starting_profile.course, profile.course) * profile.course_weight
+    occupation_score: float = ComparisonFunctions.compare_occupation(starting_profile.occupation, profile.occupation) * profile.occupation_weight
+    work_industry_score: float = ComparisonFunctions.compare_work_industry(starting_profile.work_industry, profile.work_industry) * profile.work_industry_weight
+    smoking_score: float = ComparisonFunctions.compare_smoking(starting_profile.smoking, profile.smoking) * profile.smoking_weight
+    activity_hours_score: float = ComparisonFunctions.compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
     
     overall_score: float = (
         budget_overlap_score +
@@ -317,9 +311,3 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     )
     
     return overall_score
-
-
-def print_sorted_profiles_by_score(overall_scores_sorted: List[Tuple[Profile, float]]):
-    print("\nProfiles sorted by compatibility scores:")
-    for profile, score in overall_scores_sorted:
-        print(f"User ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, Score: {score}")

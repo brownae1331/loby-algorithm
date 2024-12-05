@@ -1,10 +1,6 @@
-import numpy as np
 import pandas as pd
-from datetime import datetime, date, timedelta
-from typing import Optional, List, Union, Tuple
-from helper_functions import print_weights, generate_likes, initialize_profile_list, modify_weights_with_weighted_average, assign_profiles_to_profile_list, calculate_overall_score, print_sorted_profiles_by_score, calculate_age
-
-
+from typing import List, Tuple
+from helper_functions import PrintFunctions, initialize_profile_list, generate_likes, modify_weights_with_weighted_average, assign_profiles_to_profile_list, calculate_overall_score, calculate_age
 from generate_profiles import Profile
 
 def run():
@@ -42,10 +38,10 @@ def run():
 
     profile_objects = initialize_profile_list()
 
-    print_weights(starting_profile, "Initial")
+    PrintFunctions.print_weights(starting_profile, "Initial")
     generate_likes(starting_profile, profile_objects)
     current_profile = modify_weights_with_weighted_average(starting_profile)
-    print_weights(current_profile, "Updated")
+    PrintFunctions.print_weights(current_profile, "Updated")
     profile_list = assign_profiles_to_profile_list(starting_profile, profile_objects)
     for profile in profile_list:
         overall_score: float = calculate_overall_score(starting_profile, profile)
@@ -53,7 +49,7 @@ def run():
 
     # Sort profiles by overall score from highest to lowest
     overall_scores_sorted = sorted(overall_scores, key=lambda x: x[1], reverse=True)
-    print_sorted_profiles_by_score(overall_scores_sorted)
+    PrintFunctions.print_sorted_profiles_by_score(overall_scores_sorted)
 
 
     # ALL CODE ABOVE HERE
