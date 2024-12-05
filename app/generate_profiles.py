@@ -10,7 +10,7 @@ class Profile:
                  rent_location_preference: Optional[str], age_preference: Tuple[int, int], rent_budget: Optional[Tuple[int, int]],
                  last_filter_processed_at: Optional[datetime], available_at: Optional[str], roommate_count_preference: Optional[int],
                  interests: Optional[List[str]], budget_weight = 0.27, age_similarity_weight = 0.27, origin_country_weight = 0.1, course_weight = 0.07,
-                 occupation_weight = 0.11, work_industry_weight = 0.07, smoking_weight = 0.06, activity_hours_weight = 0.05, likes = []):
+                 occupation_weight = 0.11, work_industry_weight = 0.07, smoking_weight = 0.06, activity_hours_weight = 0.05, available_at_weight = 0.5, likes = []):
         self.budget_weight = budget_weight
         self.age_similarity_weight = age_similarity_weight
         self.origin_country_weight = origin_country_weight
@@ -19,6 +19,7 @@ class Profile:
         self.work_industry_weight = work_industry_weight
         self.smoking_weight = smoking_weight
         self.activity_hours_weight = activity_hours_weight
+        self.available_at_weight = available_at_weight
 
         self.user_id = user_id
         self.first_name = first_name

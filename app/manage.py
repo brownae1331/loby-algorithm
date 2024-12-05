@@ -2,6 +2,7 @@ import pandas as pd
 from typing import List, Tuple
 from helper_functions import PrintFunctions, initialize_profile_list, generate_likes, modify_weights_with_weighted_average, assign_profiles_to_profile_list, calculate_overall_score, calculate_age
 from generate_profiles import Profile
+import openpyxl
 
 def run():
     overall_scores: List[Tuple[Profile, float]] = []
@@ -37,12 +38,12 @@ def run():
     )
 
     profile_objects = initialize_profile_list()
-
+    profile_list = assign_profiles_to_profile_list(starting_profile, profile_objects)
+    generate_likes(starting_profile, profile_list)
     PrintFunctions.print_weights(starting_profile, "Initial")
-    generate_likes(starting_profile, profile_objects)
     current_profile = modify_weights_with_weighted_average(starting_profile)
     PrintFunctions.print_weights(current_profile, "Updated")
-    profile_list = assign_profiles_to_profile_list(starting_profile, profile_objects)
+
     for profile in profile_list:
         overall_score: float = calculate_overall_score(starting_profile, profile)
         overall_scores.append((profile, overall_score))

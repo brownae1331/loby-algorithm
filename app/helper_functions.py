@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Union, Tuple, Any
 
+from matplotlib.style.core import available
 
 from generate_profiles import Profile
 
@@ -21,6 +22,7 @@ class PrintFunctions:
         print(f"Work Industry Weight: {profile.work_industry_weight}")
         print(f"Smoking Weight: {profile.smoking_weight}")
         print(f"Activity Hours Weight: {profile.activity_hours_weight}")
+        print(f"Available At Weight: {profile.available_at_weight}")
 
     @staticmethod
     def print_sorted_profiles_by_score(overall_scores_sorted: List[Tuple[Profile, float]]) -> None:
@@ -239,7 +241,8 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
         'occupation_weight': 0.0,
         'work_industry_weight': 0.0,
         'smoking_weight': 0.0,
-        'activity_hours_weight': 0.0
+        'activity_hours_weight': 0.0,
+        'available_at_weight' : 0.0
     }
 
     # Calculate average scores from liked profiles
@@ -282,6 +285,13 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
         new_weight = max(0.05, min(2.0, new_weight))
         
         setattr(current_profile, key, new_weight)
+
+    current_date = pd.to_datetime('today')
+    available_at_date = pd.to_datetime(current_profile.available_at)
+    days_difference = abs((available_at_date - current_date).days)
+    avg_scores['available_at_weight'] += max(0.0,
+                                             1 - (days_difference / 365))  # Normalize to a value between 0 and 1
+    setattr(current_profile, 'available_at_weight', avg_scores['available_at_weight'])
 
     return current_profile
 
