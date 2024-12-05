@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List, Union
 
 
-from generate_profiles import Profile
+from app.generate_profiles import Profile
 
 
 np.random.seed(42)
@@ -147,7 +147,7 @@ def assign_profiles_to_profile_list(profile_ids: Union[int, List[int]] = None):
         
 assign_profiles_to_profile_list()
 
-def calculate_budget_overlap_score(starting_budget, target_budget):
+def calculate_budget_overlap_score(starting_budget, target_budget) -> float:
     """
     Calculate a budget overlap score between the starting profile budget and a target profile budget.
     The score is 1 if the budgets completely overlap, 0 if there's no overlap, and between 0 and 1 for partial overlap.
@@ -323,20 +323,20 @@ current_profile = modify_weights_with_weighted_average(
 
 print_weights(current_profile, "Updated")
 
-def calculate_overall_score(profile):
+def calculate_overall_score(profile: Profile) -> float:
     """
     Calculate the overall score for a profile by calling all the comparison functions and summing their weighted scores.
     """
-    budget_overlap_score = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * profile.budget_weight
-    age_similarity_score = calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
-    origin_country_score = compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
-    course_score = compare_course(starting_profile.course, profile.course) * profile.course_weight
-    occupation_score = compare_occupation(starting_profile.occupation, profile.occupation) * profile.occupation_weight
-    work_industry_score = compare_work_industry(starting_profile.work_industry, profile.work_industry) * profile.work_industry_weight
-    smoking_score = compare_smoking(starting_profile.smoking, profile.smoking) * profile.smoking_weight
-    activity_hours_score = compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
+    budget_overlap_score: float = calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * profile.budget_weight
+    age_similarity_score: float = calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
+    origin_country_score: float = compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
+    course_score: float = compare_course(starting_profile.course, profile.course) * profile.course_weight
+    occupation_score: float = compare_occupation(starting_profile.occupation, profile.occupation) * profile.occupation_weight
+    work_industry_score: float = compare_work_industry(starting_profile.work_industry, profile.work_industry) * profile.work_industry_weight
+    smoking_score: float = compare_smoking(starting_profile.smoking, profile.smoking) * profile.smoking_weight
+    activity_hours_score: float = compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
     
-    overall_score = (
+    overall_score: float = (
         budget_overlap_score +
         age_similarity_score +
         origin_country_score +
