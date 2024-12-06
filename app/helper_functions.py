@@ -10,6 +10,15 @@ from generate_profiles import Profile
 # Define baseline threshold for significant preference
 PREFERENCE_THRESHOLD = 0.5
 
+def calculate_k_factor(days, decay_rate: float = 0.01) -> float:
+    """
+    Calculate the k-factor based on the time difference from the liked_time.
+    The k-factor decreases by the decay_rate for each day since the liked_time.
+    """
+    time_difference_days = days #(current_time - liked_time).days
+    k_factor = max(0.0, 1.0 - decay_rate * time_difference_days)
+    return k_factor
+
 class PrintFunctions:
     @staticmethod
     def print_weights(profile: Profile, title: str) -> None:
@@ -120,7 +129,8 @@ def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> Non
         liked_profile = next((p for p in profile_list if p.user_id == user_id), None)
         if liked_profile:
             profiles_liked += 1
-            current_profile.likes.append(liked_profile)
+            days = int(input("Days: "))
+            current_profile.likes.append([liked_profile, days])
         else:
             print(f"No profile found with User ID: {user_id}") 
 
@@ -250,24 +260,24 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
     }
 
     # Calculate average scores from liked profiles
-    for liked_profile in current_profile.likes:
+    for [liked_profile,days] in current_profile.likes:
         avg_scores['budget_weight'] += CalculateScoreFunctions.calculate_budget_overlap_score(
-            current_profile.rent_budget, liked_profile.rent_budget)
+            current_profile.rent_budget, liked_profile.rent_budget)*calculate_k_factor(days)
         avg_scores['age_similarity_weight'] += CalculateScoreFunctions.calculate_age_similarity_score(
-            calculate_age(current_profile.birth_date), 
-            calculate_age(liked_profile.birth_date))
+            calculate_age(current_profile.birth_date),
+            calculate_age(liked_profile.birth_date))*calculate_k_factor(days)
         avg_scores['origin_country_weight'] += ComparisonFunctions.compare_origin_country(
-            current_profile.origin_country, liked_profile.origin_country)
+            current_profile.origin_country, liked_profile.origin_country)*calculate_k_factor(days)
         avg_scores['course_weight'] += ComparisonFunctions.compare_course(
-            current_profile.course, liked_profile.course)
+            current_profile.course, liked_profile.course)*calculate_k_factor(days)
         avg_scores['occupation_weight'] += ComparisonFunctions.compare_occupation(
-            current_profile.occupation, liked_profile.occupation)
+            current_profile.occupation, liked_profile.occupation)*calculate_k_factor(days)
         avg_scores['work_industry_weight'] += ComparisonFunctions.compare_work_industry(
-            current_profile.work_industry, liked_profile.work_industry)
+            current_profile.work_industry, liked_profile.work_industry)*calculate_k_factor(days)
         avg_scores['smoking_weight'] += ComparisonFunctions.compare_smoking(
-            current_profile.smoking, liked_profile.smoking)
+            current_profile.smoking, liked_profile.smoking)*calculate_k_factor(days)
         avg_scores['activity_hours_weight'] += ComparisonFunctions.compare_activity_hours(
-            current_profile.activity_hours, liked_profile.activity_hours)
+            current_profile.activity_hours, liked_profile.activity_hours)*calculate_k_factor(days)
 
     # Calculate averages
     for key in avg_scores:
