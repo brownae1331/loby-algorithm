@@ -9,8 +9,9 @@ from generate_profiles import Profile
 
 # Define baseline threshold for significant preference
 PREFERENCE_THRESHOLD = 0.5
+decay_rate = 0.01
 
-def calculate_k_factor(days, decay_rate: float = 0.01) -> float:
+def calculate_k_factor(days, decay_rate) -> float:
     """
     Calculate the k-factor based on the time difference from the liked_time.
     The k-factor decreases by the decay_rate for each day since the liked_time.
@@ -37,7 +38,8 @@ class PrintFunctions:
     def print_sorted_profiles_by_score(overall_scores_sorted: List[Tuple[Profile, float]]) -> None:
         print("\nProfiles sorted by compatibility scores:")
         for profile, score in overall_scores_sorted:
-            print(f"User ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, Score: {score}")
+            print(f"User ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, "
+                  f"Living Pref: {profile.sex_living_preference}, Score: {score}")
 
 
 class CalculateScoreFunctions:
@@ -95,7 +97,7 @@ class ComparisonFunctions:
     def compare_smoking(attr1, attr2) -> float:
         """Compare smoking preferences between profiles."""
         if attr1 is None or attr2 is None:
-            return 0
+            return -1.0
         return float(attr1 == attr2)
 
     @staticmethod
@@ -262,22 +264,23 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
     # Calculate average scores from liked profiles
     for [liked_profile,days] in current_profile.likes:
         avg_scores['budget_weight'] += CalculateScoreFunctions.calculate_budget_overlap_score(
-            current_profile.rent_budget, liked_profile.rent_budget)*calculate_k_factor(days)
+            current_profile.rent_budget, liked_profile.rent_budget) * calculate_k_factor(days, decay_rate)
         avg_scores['age_similarity_weight'] += CalculateScoreFunctions.calculate_age_similarity_score(
             calculate_age(current_profile.birth_date),
-            calculate_age(liked_profile.birth_date))*calculate_k_factor(days)
+            calculate_age(liked_profile.birth_date)) * calculate_k_factor(days, decay_rate)
         avg_scores['origin_country_weight'] += ComparisonFunctions.compare_origin_country(
-            current_profile.origin_country, liked_profile.origin_country)*calculate_k_factor(days)
+            current_profile.origin_country, liked_profile.origin_country) * calculate_k_factor(days, decay_rate)
         avg_scores['course_weight'] += ComparisonFunctions.compare_course(
-            current_profile.course, liked_profile.course)*calculate_k_factor(days)
+            current_profile.course, liked_profile.course) * calculate_k_factor(days, decay_rate)
         avg_scores['occupation_weight'] += ComparisonFunctions.compare_occupation(
-            current_profile.occupation, liked_profile.occupation)*calculate_k_factor(days)
+            current_profile.occupation, liked_profile.occupation) * calculate_k_factor(days, decay_rate)
         avg_scores['work_industry_weight'] += ComparisonFunctions.compare_work_industry(
-            current_profile.work_industry, liked_profile.work_industry)*calculate_k_factor(days)
-        avg_scores['smoking_weight'] += ComparisonFunctions.compare_smoking(
-            current_profile.smoking, liked_profile.smoking)*calculate_k_factor(days)
+            current_profile.work_industry, liked_profile.work_industry) * calculate_k_factor(days, decay_rate)
+        smoking_score = ComparisonFunctions.compare_smoking(current_profile.smoking, liked_profile.smoking)
+        if smoking_score != -1:
+            avg_scores['smoking_weight'] += smoking_score * calculate_k_factor(days, decay_rate)
         avg_scores['activity_hours_weight'] += ComparisonFunctions.compare_activity_hours(
-            current_profile.activity_hours, liked_profile.activity_hours)*calculate_k_factor(days)
+            current_profile.activity_hours, liked_profile.activity_hours) * calculate_k_factor(days, decay_rate)
 
     # Calculate averages
     for key in avg_scores:
@@ -320,7 +323,11 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     course_score: float = ComparisonFunctions.compare_course(starting_profile.course, profile.course) * profile.course_weight
     occupation_score: float = ComparisonFunctions.compare_occupation(starting_profile.occupation, profile.occupation) * profile.occupation_weight
     work_industry_score: float = ComparisonFunctions.compare_work_industry(starting_profile.work_industry, profile.work_industry) * profile.work_industry_weight
-    smoking_score: float = ComparisonFunctions.compare_smoking(starting_profile.smoking, profile.smoking) * profile.smoking_weight
+    smoking_score: float = ComparisonFunctions.compare_smoking(starting_profile.smoking, profile.smoking)
+    if smoking_score != -1:
+        smoking_score *= profile.smoking_weight
+    else:
+        smoking_score = 0.0
     activity_hours_score: float = ComparisonFunctions.compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
     
     overall_score: float = (
