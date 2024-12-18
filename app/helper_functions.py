@@ -33,6 +33,7 @@ class PrintFunctions:
         print(f"Smoking Weight: {profile.smoking_weight}")
         print(f"Activity Hours Weight: {profile.activity_hours_weight}")
         print(f"Available At Weight: {profile.available_at_weight}")
+        print(f"University Weight: {profile.university_weight}")
 
     @staticmethod
     def print_sorted_profiles_by_score(overall_scores_sorted: List[Tuple[Profile, float]]) -> None:
@@ -47,7 +48,10 @@ class CalculateScoreFunctions:
     def calculate_budget_overlap_score(starting_budget: Tuple[int, int], target_budget: Tuple[int, int]) -> float:
         """
         Calculate a budget overlap score between the starting profile budget and a target profile budget.
-        The score is 1 if the budgets completely overlap, 0 if there's no overlap, and between 0 and 1 for partial overlap.
+        Returns:
+        - 1.0: if budgets have significant overlap (>50%)
+        - 0.5: if budgets have some overlap (>0% but ≤50%)
+        - 0.0: if budgets have no overlap
         """
         start_min, start_max = starting_budget
         target_min, target_max = target_budget
@@ -60,7 +64,18 @@ class CalculateScoreFunctions:
         overlap_length = min(start_max, target_max) - max(start_min, target_min)
         budget_range = start_max - start_min
         
-        return overlap_length / budget_range if budget_range > 0 else 0.0
+        if budget_range <= 0:
+            return 0.0
+            
+        overlap_percentage = overlap_length / budget_range
+        
+        # Categorize into three levels
+        if overlap_percentage > 0.5:
+            return 1.0
+        elif overlap_percentage > 0:
+            return 0.5
+        else:
+            return 0.0
 
     @staticmethod
     def calculate_age_similarity_score(starting_age: int, target_age: int) -> float:
@@ -69,7 +84,7 @@ class CalculateScoreFunctions:
         The score is calculated using the function y = 1 - (1/15) * x^2, where y is the score and x is the age difference.
         """
         age_difference = abs(starting_age - target_age)
-        return max(0.0, min(1.0, 1 - (age_difference ** 2) / 15))
+        return max(-1.0, min(1.0, 1 - (age_difference ** 2) / 15))
 
 
 class ComparisonFunctions:
@@ -105,6 +120,13 @@ class ComparisonFunctions:
         """Compare activity hours between profiles."""
         return float(attr1 == attr2)
 
+    @staticmethod
+    def compare_university(attr1, attr2) -> float:
+        """Compare the university between profiles."""
+        if attr1 is None or attr2 is None:
+            return 0.0
+        return float(attr1 == attr2)
+
 
 def calculate_age(birth_date: date) -> int:
     """Calculate age from birth date."""
@@ -113,16 +135,38 @@ def calculate_age(birth_date: date) -> int:
 
 
 def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> None:
+    # Create a list to store profile data
+    available_profiles_data = []
+    
     print("\nAvailable profiles:")
     for profile in profile_list:
-        budget_score = CalculateScoreFunctions.calculate_budget_overlap_score(current_profile.rent_budget, profile.rent_budget)
-        age_score = CalculateScoreFunctions.calculate_age_similarity_score(calculate_age(current_profile.birth_date), calculate_age(profile.birth_date))
-        country_score = ComparisonFunctions.compare_origin_country(current_profile.origin_country, profile.origin_country)
-        smoking_score = ComparisonFunctions.compare_smoking(current_profile.smoking, profile.smoking)
-        occupation_score = ComparisonFunctions.compare_occupation(current_profile.occupation, profile.occupation)
-        industry_score = ComparisonFunctions.compare_work_industry(current_profile.work_industry, profile.work_industry)
+        # Print each profile's basic information
+        print(f"ID: {profile.user_id}, "
+              f"Name: {profile.first_name} {profile.last_name}, "
+              f"Age: {calculate_age(profile.birth_date)}, "
+              f"Gender: {profile.gender}, "
+              f"Budget: £{profile.rent_budget[0]}-£{profile.rent_budget[1]}")
         
-        print(f"ID: {profile.user_id}, Budget: {budget_score:.2f}, Age: {age_score:.2f}, Country: {country_score:.1f}, Smoking: {smoking_score:.1f}, Occupation: {occupation_score:.1f}, Industry: {industry_score:.1f}")
+        # Add profile data to list for Excel export
+        available_profiles_data.append({
+            'ID': profile.user_id,
+            'Name': f"{profile.first_name} {profile.last_name}",
+            'Age': calculate_age(profile.birth_date),
+            'Gender': profile.gender,
+            'Budget': f"£{profile.rent_budget[0]}-£{profile.rent_budget[1]}",
+            'Origin Country': profile.origin_country,
+            'Occupation': profile.occupation,
+            'Work Industry': profile.work_industry,
+            'Course': profile.course,
+            'Smoking': profile.smoking,
+            'Activity Hours': profile.activity_hours,
+            'Available From': profile.available_at
+        })
+
+    # Create DataFrame and export to Excel
+    available_df = pd.DataFrame(available_profiles_data)
+    available_df.to_excel('available_profiles.xlsx', index=False, engine='openpyxl')
+    print("\nAvailable profiles have been exported to 'available_profiles.xlsx'")
 
     profiles_liked = 0
     while profiles_liked != 5:
@@ -161,7 +205,7 @@ def assign_profiles_to_profile_list(starting_profile: Profile, profile_objects: 
 
 
 def initialize_profile_list() -> List[Profile]:
-    np.random.seed(42)
+    np.random.seed(55)
 
     # Ensure all arrays have the same length
     num_profiles = 500
@@ -169,25 +213,51 @@ def initialize_profile_list() -> List[Profile]:
     # Generate a range of dates for the year 2024
     date_range = pd.date_range("2024-06-01", "2024-12-31")
 
-
-    # Example profile data
+    # First, generate occupations
+    occupations = np.random.choice(["Student", "Working", "Cruising"], num_profiles)
+    
+    # Initialize universities array
+    universities = np.array([None] * num_profiles)
+    
+    # Assign universities based on occupation
+    student_mask = occupations == "Student"
+    non_student_mask = ~student_mask
+    
+    # Students can only have actual universities (not 'none')
+    universities[student_mask] = np.random.choice(["KCL", "UCL", "City", "QMU"], sum(student_mask))
+    
+    # Non-students can have any option including 'none'
+    universities[non_student_mask] = np.random.choice(["KCL", "UCL", "City", "QMU", "none"], sum(non_student_mask))
+    
+    # Initialize arrays with None
+    work_industries = np.array([None] * num_profiles)
+    courses = np.array([None] * num_profiles)
+    
+    # Set values based on occupation
+    working_mask = occupations == "Working"
+    work_industries[working_mask] = np.random.choice(["Tech", "Finance", "Media"], sum(working_mask))
+    
+    student_mask = occupations == "Student"
+    courses[student_mask] = np.random.choice(["Computer Science", "Business", "Engineering"], sum(student_mask))
+    
+    # Create DataFrame with updated logic
     profiles = pd.DataFrame({
         "user_id": range(1, num_profiles + 1),
         "first_name": np.random.choice(["John", "Jane", "Alice", "Bob"], num_profiles),
         "last_name": np.random.choice(["Doe", "Smith", "Johnson", "Williams"], num_profiles),
-        "birth_date": pd.to_datetime(np.random.choice(pd.date_range("1995-01-01", "2006-12-31"), num_profiles)),
+        "birth_date": pd.to_datetime(np.random.choice(pd.date_range("1997-01-01", "2006-12-31"), num_profiles)),
         "is_verified": np.random.choice([True, False], num_profiles),
         "gender": np.random.choice(["Male", "Female"], num_profiles),
         "description": np.random.choice([None, "Loves hiking", "Enjoys cooking", "Avid reader"], num_profiles),
         "languages": [np.random.choice(["English", "Spanish", "French", "Welsh"], np.random.randint(1, 4)).tolist() for _ in range(num_profiles)],
         "origin_country": np.random.choice(["UK", "USA", "Canada", "Australia"], num_profiles),
-        "occupation": np.random.choice(["Student", "Working", "Cruising"], num_profiles),
-        "work_industry": np.random.choice([None, "Tech", "Finance", "Media"], num_profiles),
-        "university_id": np.random.choice([None, 1, 2, 3], num_profiles),
-        "course": np.random.choice([None, "Computer Science", "Business", "Engineering"], num_profiles),
+        "occupation": occupations,
+        "work_industry": work_industries,
+        "university_id": universities,
+        "course": courses,
         "sexual_orientation": np.random.choice([None, "Heterosexual", "Homosexual", "Bisexual"], num_profiles),
         "pets": np.random.choice([None, "Dog", "Cat", "None"], num_profiles),
-        "activity_hours": np.random.choice(["Morning", "Evening", "Night"], num_profiles),
+        "activity_hours": np.random.choice(["Morning", "Night"], num_profiles),
         "smoking": np.random.choice([None, "Yes", "No"], num_profiles),
         "extrovert_level": np.random.randint(1, 10, num_profiles),
         "cleanliness_level": np.random.randint(1, 10, num_profiles),
@@ -195,7 +265,7 @@ def initialize_profile_list() -> List[Profile]:
         "sex_living_preference": np.random.choice(["Male", "Female", "Both"], num_profiles),
         "rent_location_preference": np.random.choice(["London", "Bath", "Leeds", "Oxford"], num_profiles),
         "age_preference": [(18, 25) for _ in range(num_profiles)],
-        "rent_budget": [(np.random.randint(500, 700), np.random.randint(700, 1000)) for _ in range(num_profiles)],
+        "rent_budget": [(min_budget := np.random.randint(300, 1000), np.random.randint(min_budget, 2000)) for _ in range(num_profiles)],
         "last_filter_processed_at": pd.to_datetime(np.random.choice(pd.date_range("2023-01-01", "2023-12-31"), num_profiles)),
         "available_at": np.random.choice(date_range.strftime('%Y-%m'), num_profiles),
         "roommate_count_preference": np.random.choice([1, 2, 3], num_profiles),
@@ -258,7 +328,8 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
         'work_industry_weight': 0.0,
         'smoking_weight': 0.0,
         'activity_hours_weight': 0.0,
-        'available_at_weight' : 0.0
+        'available_at_weight' : 0.0,
+        'university_weight': 0.0,
     }
 
     # Calculate average scores from liked profiles
@@ -281,6 +352,8 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
             avg_scores['smoking_weight'] += smoking_score * calculate_k_factor(days, decay_rate)
         avg_scores['activity_hours_weight'] += ComparisonFunctions.compare_activity_hours(
             current_profile.activity_hours, liked_profile.activity_hours) * calculate_k_factor(days, decay_rate)
+        avg_scores['university_weight'] += ComparisonFunctions.compare_university(
+            current_profile.university_id, liked_profile.university_id) * calculate_k_factor(days, decay_rate)
 
     # Calculate averages
     for key in avg_scores:
@@ -329,6 +402,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     else:
         smoking_score = 0.0
     activity_hours_score: float = ComparisonFunctions.compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
+    university_score: float = ComparisonFunctions.compare_university(starting_profile.university_id, profile.university_id) * profile.university_weight
     
     overall_score: float = (
         budget_overlap_score +
@@ -338,7 +412,55 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
         occupation_score +
         work_industry_score +
         smoking_score +
-        activity_hours_score
+        activity_hours_score +
+        university_score
     )
     
     return overall_score
+
+
+def get_age_based_weights(birth_date: date) -> dict:
+    """
+    Returns different weight configurations based on age groups.
+    Age groups: 18-21 (students), 22-25 (early career), 26+ (professionals)
+    """
+    age = calculate_age(birth_date)
+    
+    # Use the same default weights as Profile class
+    weights = {
+        'budget_weight': 0.156,
+        'age_similarity_weight': 0.287,
+        'origin_country_weight': 0.029,
+        'course_weight': 0.169,
+        'occupation_weight': 0.273,
+        'work_industry_weight': 0.094,
+        'smoking_weight': 0.03,
+        'activity_hours_weight': 0.017,
+        'available_at_weight': 0.0,
+        'university_weight': 0.2,
+    }
+    
+    # Apply age-based multipliers to the base weights
+    if 18 <= age <= 21:  # Student age group
+        weights['budget_weight'] *= 1.5
+        weights['university_weight'] *= 2.0
+        weights['course_weight'] *= 1.5
+        weights['work_industry_weight'] *= 0.5
+        weights['occupation_weight'] *= 0.5
+        
+    elif 22 <= age <= 25:  # Early career
+        weights['budget_weight'] *= 1.2
+        weights['work_industry_weight'] *= 1.5
+        weights['occupation_weight'] *= 1.5
+        weights['university_weight'] *= 0.5
+        weights['course_weight'] *= 0.8
+        
+    else:  # 26+ Professional
+        weights['budget_weight'] *= 2.0
+        weights['work_industry_weight'] *= 2.0
+        weights['occupation_weight'] *= 2.0
+        weights['university_weight'] *= 0.1
+        weights['course_weight'] *= 0.5
+        weights['activity_hours_weight'] *= 1.5
+    
+    return weights

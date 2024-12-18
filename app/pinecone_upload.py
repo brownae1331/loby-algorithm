@@ -1,10 +1,11 @@
 import pandas as pd
 from typing import List, Tuple
-from helper_functions import initialize_profile_list, calculate_age, assign_profiles_to_profile_list
+from helper_functions import initialize_profile_list, calculate_age, assign_profiles_to_profile_list, calculate_overall_score
 from generate_profiles import Profile
 from pinecone import Pinecone, ServerlessSpec
 import json
 from manage import starting_profile  # Import Alex's profile
+from datetime import date, timedelta
 
 def profile_to_text(profile: Profile) -> str:
     """Convert profile attributes to a text string for embedding"""
@@ -35,7 +36,7 @@ def upload_profiles_to_pinecone():
     print("Pinecone initialized")  # Debug print
     
     # Create or get index
-    index_name = "roommate-profiles8"
+    index_name = "roommate-profiles3"
     if index_name not in pc.list_indexes():
         print(f"Creating new index: {index_name}")  # Debug print
         pc.create_index(
@@ -96,7 +97,7 @@ def upload_profiles_to_pinecone():
     return pc, index
 
 def query_similar_profiles(pc: Pinecone, index, query_profile: Profile, top_k: int = 5):
-    """Query Pinecone for similar profiles"""
+    """Query Pinecone for similar profiles with weighted scoring"""
     query_text = profile_to_text(query_profile)
     query_embedding = pc.inference.embed(
         model="multilingual-e5-large",
@@ -104,18 +105,66 @@ def query_similar_profiles(pc: Pinecone, index, query_profile: Profile, top_k: i
         parameters={"input_type": "query"}
     )
 
+    # Get initial results from Pinecone
     results = index.query(
         namespace="profiles",
         vector=query_embedding[0].values,
-        top_k=top_k,
+        top_k=top_k * 2,  # Get more results initially to allow for reranking
         include_metadata=True
     )
 
-    print(f"\nTop {top_k} Similar Profiles:")
+    # Rerank results using weighted scoring
+    scored_results = []
     for match in results.matches:
         metadata = match.metadata
-        print(f"\nProfile ID: {match.id}")
-        print(f"Similarity Score: {match.score:.3f}")
+        
+        # Create temporary profile object for scoring
+        temp_profile = Profile(
+            user_id=int(match.id),
+            first_name=metadata['name'].split()[0],
+            last_name=metadata['name'].split()[1],
+            birth_date=pd.to_datetime(date.today() - timedelta(days=metadata['age']*365)),  # Approximate birth date
+            gender=metadata['gender'],
+            occupation=metadata['occupation'],
+            rent_location_preference=metadata['location'],
+            rent_budget=(metadata['budget_min'], metadata['budget_max']),
+            available_at=metadata['available_at'],
+            # Set other required fields with default values
+            is_verified=True,
+            description="",
+            languages=["English"],
+            origin_country="UK",
+            work_industry="",
+            university_id=None,
+            course="",
+            sexual_orientation="",
+            pets="",
+            activity_hours="",
+            smoking="",
+            extrovert_level=5,
+            cleanliness_level=5,
+            partying_level=5,
+            sex_living_preference="Both",
+            age_preference=(18, 99),
+            last_filter_processed_at=pd.to_datetime("now"),
+            roommate_count_preference=2,
+            interests=[]
+        )
+        
+        # Calculate weighted score
+        weighted_score = calculate_overall_score(query_profile, temp_profile)
+        # Combine with embedding similarity score
+        combined_score = (weighted_score + match.score) / 2
+        scored_results.append((temp_profile, metadata, combined_score))
+
+    # Sort by combined score and take top_k
+    scored_results.sort(key=lambda x: x[2], reverse=True)
+    top_results = scored_results[:top_k]
+
+    print(f"\nTop {top_k} Similar Profiles (with weighted scoring):")
+    for profile, metadata, score in top_results:
+        print(f"\nProfile ID: {profile.user_id}")
+        print(f"Combined Score: {score:.3f}")
         print(f"Name: {metadata['name']}")
         print(f"Age: {metadata['age']}")
         print(f"Gender: {metadata['gender']}")
@@ -123,7 +172,7 @@ def query_similar_profiles(pc: Pinecone, index, query_profile: Profile, top_k: i
         print(f"Location: {metadata['location']}")
         print(f"Budget Range: £{metadata['budget_min']}-£{metadata['budget_max']}")
         print(f"Available From: {metadata['available_at']}")
-        print("-" * 50) 
+        print("-" * 50)
 
 if __name__ == "__main__":
     print("Starting main execution...")  # Debug print

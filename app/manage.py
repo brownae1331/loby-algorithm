@@ -7,18 +7,18 @@ import openpyxl
 # Alex's profile
 starting_profile = Profile(
     user_id=0,
-    first_name="Alex",
+    first_name="Pooja",
     last_name="Example",
-    birth_date=pd.to_datetime("1998-05-22"),
+    birth_date=pd.to_datetime("2004-05-22"),
     is_verified=True,
     gender="Male",
     description="Enjoys outdoor activities and reading",
     languages=["English", "Spanish"],
     origin_country="UK",
-    occupation="Working",
-    work_industry="Tech",
-    university_id=1,
-    course="Computer Science",
+    occupation="Student",
+    work_industry=None,
+    university_id="City",
+    course= "Computer Science",  
     sexual_orientation="Heterosexual",
     pets="Dog",
     activity_hours="Morning",
@@ -29,7 +29,7 @@ starting_profile = Profile(
     sex_living_preference="Both",
     rent_location_preference="London",
     age_preference=(22, 30),
-    rent_budget=(600, 900),
+    rent_budget=(400, 650),
     last_filter_processed_at=pd.to_datetime("2023-06-01"),
     available_at="2024-09",
     roommate_count_preference=2,
@@ -65,7 +65,8 @@ def run():
         'Course': profile.course,
         'Activity Hours': profile.activity_hours,
         'Smoking': profile.smoking,
-        'Rent Budget': f"£{profile.rent_budget[0]}-£{profile.rent_budget[1]}"
+        'Rent Budget': f"£{profile.rent_budget[0]}-£{profile.rent_budget[1]}",
+        'University': profile.university_id,
     } for profile, score in overall_scores_sorted]
 
     results_df = pd.DataFrame(profiles_data)
