@@ -9,7 +9,7 @@ class Profile:
                  extrovert_level: int, cleanliness_level: int, partying_level: int, sex_living_preference: str,
                  rent_location_preference: Optional[str], age_preference: Tuple[int, int], rent_budget: Optional[Tuple[int, int]],
                  last_filter_processed_at: Optional[datetime], available_at: Optional[str], roommate_count_preference: Optional[int],
-                 interests: Optional[List[str]], budget_weight =  0.156, age_similarity_weight = 0.287, origin_country_weight = 0.029, course_weight = 0.169,
+                 interests: Optional[List[str]], budget_weight =  0.176, age_similarity_weight = 0.3, origin_country_weight = 0.029, course_weight = 0.169,
                  occupation_weight = 0.273, work_industry_weight = 0.094, smoking_weight = 0.03, activity_hours_weight = 0.017, available_at_weight = 0, university_weight = 0.2, likes = []):
         self.budget_weight = budget_weight
         self.age_similarity_weight = age_similarity_weight

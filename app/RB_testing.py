@@ -5,32 +5,32 @@ from generate_profiles import Profile
 import openpyxl
 import random
 
-# Alex's profile
+# Sam's profile (updated to match glop's exactly)
 starting_profile = Profile(
     user_id=0,
-    first_name="Alex",
+    first_name="Sam",
     last_name="Example",
     birth_date=pd.to_datetime("2002-05-22"),
     is_verified=True,
-    gender="Male",
+    gender="Female",
     description="Enjoys outdoor activities and reading",
     languages=["English", "Spanish"],
     origin_country="UK",
-    occupation="Working",
-    work_industry="Tech",
+    occupation="Student",
+    work_industry=None,
     university_id="UCL",
-    course= None,
+    course="Business",
     sexual_orientation="Heterosexual",
     pets="Dog",
-    activity_hours="Morning",
-    smoking="No",
+    activity_hours=None,
+    smoking=None,
     extrovert_level=7,
     cleanliness_level=8,
     partying_level=4,
     sex_living_preference="Both",
     rent_location_preference="London",
     age_preference=(22, 30),
-    rent_budget=(600, 900),
+    rent_budget=(500, 600),
     last_filter_processed_at=pd.to_datetime("2023-06-01"),
     available_at="2024-09",
     roommate_count_preference=2,
@@ -40,9 +40,7 @@ starting_profile = Profile(
 def create_test_profiles() -> List[Profile]:
     # Base template for all profiles
     base_profile = {
-        "last_name": "User",
         "is_verified": True,
-        "gender": "Male",
         "description": "Test profile",
         "languages": ["English"],
         "sexual_orientation": "Heterosexual",
@@ -59,113 +57,165 @@ def create_test_profiles() -> List[Profile]:
         "interests": ["Reading", "Sports"]
     }
     
-    # Specific variations for each profile
+    # Updated profile variations to match the terminal output
     profile_variations = [
         {
-            "user_id": 396,
-            "birth_date": "2004-01-01",
-            "origin_country": "UK",
-            "work_industry": "Finance",
-            "course": "none",
-            "smoking": "No",
-            "university_id": "UCL",
-            "rent_budget": (499, 760),
-            "occupation": "Working",
-            "activity_hours": "Morning"
-        },
-        {
-            "user_id": 468,
-            "birth_date": "2000-01-01",
-            "origin_country": "UK",
-            "work_industry": "Tech",
-            "course": "none",
-            "smoking": "Yes",
-            "university_id": "QMUL",
-            "rent_budget": (574, 661),
-            "occupation": "Working",
-            "activity_hours": "Morning"
-        },
-        {
-            "user_id": 8,
-            "birth_date": "2002-01-01",
-            "origin_country": "USA",
-            "work_industry": "Tech",
-            "course": None,
-            "smoking": None,
-            "university_id": None,
-            "rent_budget": (748, 949),
-            "occupation": "Working",
-            "activity_hours": "Night"
-        },
-        {
-            "user_id": 112,
-            "birth_date": "2002-01-01",  # 24 years old
-            "origin_country": "Australia",
-            "course": "Engineering",
-            "occupation": "Finance",
-            "work_industry": None,
-            "smoking": "Yes",
-            "university_id": "QMUL",
-            "activity_hours": "Morning",
-            "rent_budget": (737, 1603)
-        },
-        {
-            "user_id": 384,
-            "birth_date": "1998-01-01",  # 26 years old
+            "user_id": 483,
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "birth_date": pd.to_datetime("2002-01-01"),  # Age 22
             "origin_country": "Canada",
-            "course": "none",
-            "occupation": "Working",
-            "work_industry": "Finance",
-            "university_id": "UCL",
+            "occupation": "Student",
+            "work_industry": None,
+            "course": "Computer Science",
             "smoking": "No",
+            "university_id": "KCL",
+            "rent_budget": (463, 1939),
             "activity_hours": "Night",
-            "rent_budget": (735, 1841)
+            "gender": "Male"
         },
         {
-            "user_id": 41,
-            "birth_date": "2000-01-01",  # 24 years old
+            "user_id": 26,
+            "first_name": "John",
+            "last_name": "Johnson",
+            "birth_date": pd.to_datetime("2004-01-01"),  # Age 20
             "origin_country": "Australia",
-            "course": None,
-            "occupation": "Working",
-            "work_industry": "Finance",
-            "smoking": "Yes",
-            "university_id": None,
-            "activity_hours": "Morning",
-            "rent_budget": (615, 1095)
+            "occupation": "Student",
+            "work_industry": None,
+            "course": "Computer Science",
+            "smoking": None,
+            "university_id": "QMU",
+            "rent_budget": (568, 686),
+            "activity_hours": "Night",
+            "gender": "Male"
         },
         {
-            "user_id": 4,
-            "birth_date": "2004-01-01",  # 26 years old
-            "origin_country": "Australia",
-            "course": None,
-            "occupation": "Working",
-            "work_industry": "Media",
-            "smoking": "No",
-            "university_id": None,
-            "rent_budget": (634, 1646),
-            "activity_hours": "Morning"
-        },
-        {
-            "user_id": 102,
-            "birth_date": "2000-01-01",  # 22 years old
+            "user_id": 142,
+            "first_name": "Alice",
+            "last_name": "Williams",
+            "birth_date": pd.to_datetime("2000-01-01"),  # Age 24
             "origin_country": "USA",
+            "occupation": "Student",
+            "work_industry": None,
+            "course": "Business",
+            "smoking": "No",
+            "university_id": "QMU",
+            "rent_budget": (631, 1156),
+            "activity_hours": "Morning",
+            "gender": "Male"
+        },
+        {
+            "user_id": 40,
+            "first_name": "Alice",
+            "last_name": "Johnson",
+            "birth_date": pd.to_datetime("2002-01-01"),  # Age 22
+            "origin_country": "USA",
+            "occupation": "Working",
+            "work_industry": "Tech",
             "course": None,
+            "smoking": None,
+            "university_id": "KCL",
+            "rent_budget": (370, 563),
+            "activity_hours": "Night",
+            "gender": "Female"
+        },
+        {
+            "user_id": 271,
+            "first_name": "Bob",
+            "last_name": "Johnson",
+            "birth_date": pd.to_datetime("2001-01-01"),  # Age 23
+            "origin_country": "USA",
+            "occupation": "Cruising",
+            "work_industry": None,
+            "course": None,
+            "smoking": None,
+            "university_id": "City",
+            "rent_budget": (450, 1416),
+            "activity_hours": "Morning",
+            "gender": "Male"
+        },
+        {
+            "user_id": 498,
+            "first_name": "Bob",
+            "last_name": "Smith",
+            "birth_date": pd.to_datetime("2006-01-01"),  # Age 18
+            "origin_country": "Australia",
+            "occupation": "Student",
+            "work_industry": None,
+            "course": "Business",
+            "smoking": "Yes",
+            "university_id": "QMU",
+            "rent_budget": (412, 1194),
+            "activity_hours": "Night",
+            "gender": "Male"
+        },
+        {
+            "user_id": 44,
+            "first_name": "Jane",
+            "last_name": "Williams",
+            "birth_date": pd.to_datetime("2000-01-01"),  # Age 24
+            "origin_country": "Canada",
+            "occupation": "Student",
+            "work_industry": None,
+            "course": "Engineering",
+            "smoking": "Yes",
+            "university_id": "QMU",
+            "rent_budget": (756, 1125),
+            "activity_hours": "Night",
+            "gender": "Female"
+        },
+        {
+            "user_id": 309,
+            "first_name": "Jane",
+            "last_name": "Smith",
+            "birth_date": pd.to_datetime("2004-01-01"),  # Age 20
+            "origin_country": "USA",
+            "occupation": "Cruising",
+            "work_industry": None,
+            "course": None,
+            "smoking": "No",
+            "university_id": "KCL",
+            "rent_budget": (817, 1611),
+            "activity_hours": "Night",
+            "gender": "Male"
+        },
+        {
+            "user_id": 446,
+            "first_name": "John",
+            "last_name": "Johnson",
+            "birth_date": pd.to_datetime("2004-01-01"),  # Age 20
+            "origin_country": "Canada",
             "occupation": "Working",
             "work_industry": "Finance",
+            "course": None,
+            "smoking": "No",
+            "university_id": "KCL",
+            "rent_budget": (433, 1882),
+            "activity_hours": "Night",
+            "gender": "Female"
+        },
+        {
+            "user_id": 12,
+            "first_name": "Alice",
+            "last_name": "Doe",
+            "birth_date": pd.to_datetime("2003-01-01"),  # Age 21
+            "origin_country": "Canada",
+            "occupation": "Working",
+            "work_industry": "Finance",
+            "course": None,
             "smoking": None,
             "university_id": "UCL",
-            "activity_hours": "Morning",
-            "rent_budget": (549, 673)
-        },
+            "rent_budget": (893, 1748),
+            "activity_hours": "Night",
+            "gender": "Female"
+        }
     ]
     
     # Create profiles by combining base template with variations
     test_profiles = [
         Profile(
-            first_name=f"Test{var['user_id']}",
-            birth_date=pd.to_datetime(var['birth_date']),
             **{**base_profile, 
-               **{k: (None if v == "None" else v) for k, v in var.items() if k not in ['birth_date']}}
+               **{k: (None if v == "None" else v) for k, v in var.items()}}
         ) for var in profile_variations
     ]
     
@@ -175,14 +225,14 @@ def create_test_profiles() -> List[Profile]:
 def optimize_weights(starting_profile: Profile, profile_list: List[Profile], desired_order: List[int]) -> dict:
     """Optimize weights to match desired profile ordering"""
     default_weights = {
-        'budget_weight': 0.059,
-        'age_similarity_weight': 0.281,
-        'origin_country_weight': 0.026,
-        'course_weight': 0.187,
-        'occupation_weight': 0.161,
-        'work_industry_weight': 0.04,
-        'smoking_weight': 0.036,
-        'activity_hours_weight': 0.063
+        'budget_weight': 0.156,
+        'age_similarity_weight': 0.287,
+        'origin_country_weight': 0.029,
+        'course_weight': 0.169,
+        'occupation_weight': 0.273,
+        'work_industry_weight': 0.094,
+        'smoking_weight': 0.03,
+        'activity_hours_weight': 0.017
     }
     
     best_similarity = 0
@@ -192,19 +242,22 @@ def optimize_weights(starting_profile: Profile, profile_list: List[Profile], des
     print("Desired order:", desired_order)
     
     # Try different weight combinations
-    for i in range(2000):
-        # Generate weights between 0.1 and 10.0
-        new_weights = {k: random.uniform(0.01, 0.3) for k in default_weights.keys()}
+    for i in range(50000):  # Increased iterations
+        # Generate weights with wider range and different strategy
+        if i < 25000:
+            # First half: try completely random weights
+            new_weights = {k: random.uniform(0.001, 2.0) for k in default_weights.keys()}
+        else:
+            # Second half: make small adjustments to best weights found so far
+            new_weights = {
+                k: best_weights[k] * random.uniform(0.8, 1.2) 
+                for k in default_weights
+            }
         
-        # Update the weight attributes directly
+        # Update the weight attributes
         for p in [starting_profile] + profile_list:
-            p.age_similarity_weight = new_weights['age_similarity_weight']
-            p.occupation_weight = new_weights['occupation_weight']
-            p.work_industry_weight = new_weights['work_industry_weight']
-            p.activity_hours_weight = new_weights['activity_hours_weight']
-            p.smoking_weight = new_weights['smoking_weight']
-            p.budget_weight = new_weights['budget_weight']
-            p.origin_country_weight = new_weights['origin_country_weight']
+            for key, value in new_weights.items():
+                setattr(p, key, value)
         
         # Calculate scores using the new weights
         scores = []
@@ -214,12 +267,11 @@ def optimize_weights(starting_profile: Profile, profile_list: List[Profile], des
             
         current_order = [p.user_id for p, _ in sorted(scores, key=lambda x: x[1], reverse=True)]
         
-        # Debug print every 100 iterations
-        if i % 100 == 0:
+        # Debug print every 1000 iterations
+        if i % 1000 == 0:
             print(f"\nIteration {i}")
             print("Current weights:", {k: round(v, 3) for k, v in new_weights.items()})
             print("Current order:", current_order)
-            print("Current scores:", [(p.user_id, round(s, 3)) for p, s in sorted(scores, key=lambda x: x[1], reverse=True)])
         
         # Calculate similarity
         similarity = calculate_ordering_similarity(current_order, desired_order)
@@ -281,7 +333,7 @@ def run(starting_profile: Profile):
     profile_list = assign_profiles_to_profile_list(starting_profile, profile_objects)
     
     # Define desired order
-    desired_order = [167, 236, 340, 390, 384, 34, 96, 55]
+    desired_order = [483, 26, 142, 40, 271, 498, 44, 309, 446, 12]  
     
     print("Initial weights:", {
         'age_similarity_weight': starting_profile.age_similarity_weight,

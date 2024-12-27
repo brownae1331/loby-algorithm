@@ -7,9 +7,23 @@ from matplotlib.style.core import available
 
 from generate_profiles import Profile
 
-# Define baseline threshold for significant preference
+# Preference and learning constants
 PREFERENCE_THRESHOLD = 0.5
-decay_rate = 0.01
+DECAY_RATE = 0.01
+LEARNING_RATE = 0.1
+
+# Weight boundaries
+MIN_WEIGHT = 0.05
+MAX_WEIGHT = 2.0
+
+# Age similarity constants
+MIN_AGE_SCORE = -2.0
+MAX_AGE_SCORE = 1.0
+AGE_DIVISOR = 9
+
+# Profile generation
+NUM_PROFILES = 500
+
 
 def calculate_k_factor(days, decay_rate) -> float:
     """
@@ -17,7 +31,7 @@ def calculate_k_factor(days, decay_rate) -> float:
     The k-factor decreases by the decay_rate for each day since the liked_time.
     """
     time_difference_days = days #(current_time - liked_time).days
-    k_factor = max(0.0, 1.0 - decay_rate * time_difference_days)
+    k_factor = max(0.0, 1.0 - DECAY_RATE * time_difference_days)
     return k_factor
 
 class PrintFunctions:
@@ -81,10 +95,10 @@ class CalculateScoreFunctions:
     def calculate_age_similarity_score(starting_age: int, target_age: int) -> float:
         """
         Calculate an age similarity score between the starting profile age and a target profile age.
-        The score is calculated using the function y = 1 - (1/15) * x^2, where y is the score and x is the age difference.
+        The score is calculated using the function y = 1 - (1/9) * x^2, where y is the score and x is the age difference.
         """
         age_difference = abs(starting_age - target_age)
-        return max(-1.0, min(1.0, 1 - (age_difference ** 2) / 15))
+        return max(-2.0, min(1.0, 1 - (age_difference ** 2) / 9))
 
 
 class ComparisonFunctions:
@@ -205,7 +219,7 @@ def assign_profiles_to_profile_list(starting_profile: Profile, profile_objects: 
 
 
 def initialize_profile_list() -> List[Profile]:
-    np.random.seed(55)
+    np.random.seed(36)
 
     # Ensure all arrays have the same length
     num_profiles = 500
@@ -310,7 +324,7 @@ def initialize_profile_list() -> List[Profile]:
     return profile_objects
 
 
-def modify_weights_with_weighted_average(current_profile: Profile, learning_rate: float = 0.1) -> Profile:
+def modify_weights_with_weighted_average(current_profile: Profile, LEARNING_RATE: float) -> Profile:
     """
     Modify weights using weighted averages and a learning rate.
     """
@@ -335,25 +349,25 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
     # Calculate average scores from liked profiles
     for [liked_profile,days] in current_profile.likes:
         avg_scores['budget_weight'] += CalculateScoreFunctions.calculate_budget_overlap_score(
-            current_profile.rent_budget, liked_profile.rent_budget) * calculate_k_factor(days, decay_rate)
+            current_profile.rent_budget, liked_profile.rent_budget) * calculate_k_factor(days, DECAY_RATE)
         avg_scores['age_similarity_weight'] += CalculateScoreFunctions.calculate_age_similarity_score(
             calculate_age(current_profile.birth_date),
-            calculate_age(liked_profile.birth_date)) * calculate_k_factor(days, decay_rate)
+            calculate_age(liked_profile.birth_date)) * calculate_k_factor(days, DECAY_RATE)
         avg_scores['origin_country_weight'] += ComparisonFunctions.compare_origin_country(
-            current_profile.origin_country, liked_profile.origin_country) * calculate_k_factor(days, decay_rate)
+            current_profile.origin_country, liked_profile.origin_country) * calculate_k_factor(days, DECAY_RATE)
         avg_scores['course_weight'] += ComparisonFunctions.compare_course(
-            current_profile.course, liked_profile.course) * calculate_k_factor(days, decay_rate)
+            current_profile.course, liked_profile.course) * calculate_k_factor(days, DECAY_RATE)
         avg_scores['occupation_weight'] += ComparisonFunctions.compare_occupation(
-            current_profile.occupation, liked_profile.occupation) * calculate_k_factor(days, decay_rate)
+            current_profile.occupation, liked_profile.occupation) * calculate_k_factor(days, DECAY_RATE)
         avg_scores['work_industry_weight'] += ComparisonFunctions.compare_work_industry(
-            current_profile.work_industry, liked_profile.work_industry) * calculate_k_factor(days, decay_rate)
+            current_profile.work_industry, liked_profile.work_industry) * calculate_k_factor(days, DECAY_RATE)
         smoking_score = ComparisonFunctions.compare_smoking(current_profile.smoking, liked_profile.smoking)
         if smoking_score != -1:
-            avg_scores['smoking_weight'] += smoking_score * calculate_k_factor(days, decay_rate)
+            avg_scores['smoking_weight'] += smoking_score * calculate_k_factor(days, DECAY_RATE)
         avg_scores['activity_hours_weight'] += ComparisonFunctions.compare_activity_hours(
-            current_profile.activity_hours, liked_profile.activity_hours) * calculate_k_factor(days, decay_rate)
+            current_profile.activity_hours, liked_profile.activity_hours) * calculate_k_factor(days, DECAY_RATE)
         avg_scores['university_weight'] += ComparisonFunctions.compare_university(
-            current_profile.university_id, liked_profile.university_id) * calculate_k_factor(days, decay_rate)
+            current_profile.university_id, liked_profile.university_id) * calculate_k_factor(days, DECAY_RATE)
 
     # Calculate averages
     for key in avg_scores:
@@ -366,13 +380,13 @@ def modify_weights_with_weighted_average(current_profile: Profile, learning_rate
         
         # Calculate weight adjustment
         if current_score > PREFERENCE_THRESHOLD:
-            weight_adjustment = learning_rate * (current_score - PREFERENCE_THRESHOLD)
+            weight_adjustment = LEARNING_RATE * (current_score - PREFERENCE_THRESHOLD)
         else:
-            weight_adjustment = -learning_rate * (PREFERENCE_THRESHOLD - current_score)
+            weight_adjustment = -LEARNING_RATE * (PREFERENCE_THRESHOLD - current_score)
 
         # Apply weight adjustment with lower bounds
         new_weight = current_weight + weight_adjustment
-        new_weight = max(0.05, min(2.0, new_weight))
+        new_weight = max(MIN_WEIGHT, min(MAX_WEIGHT, new_weight))
         
         setattr(current_profile, key, new_weight)
 
@@ -416,7 +430,23 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
         university_score
     )
     
-    return overall_score
+    # Calculate the maximum possible score (sum of all weights)
+    max_possible_score = (
+        profile.budget_weight +
+        profile.age_similarity_weight +
+        profile.origin_country_weight +
+        profile.course_weight +
+        profile.occupation_weight +
+        profile.work_industry_weight +
+        profile.smoking_weight +
+        profile.activity_hours_weight +
+        profile.university_weight
+    )
+    
+    # Normalize the score between 0 and 1
+    normalized_score = overall_score / max_possible_score if max_possible_score > 0 else 0.0
+    
+    return normalized_score
 
 
 def get_age_based_weights(birth_date: date) -> dict:
@@ -426,18 +456,18 @@ def get_age_based_weights(birth_date: date) -> dict:
     """
     age = calculate_age(birth_date)
     
-    # Use the same default weights as Profile class
+    # Get default weights from Profile class
     weights = {
-        'budget_weight': 0.156,
-        'age_similarity_weight': 0.287,
-        'origin_country_weight': 0.029,
-        'course_weight': 0.169,
-        'occupation_weight': 0.273,
-        'work_industry_weight': 0.094,
-        'smoking_weight': 0.03,
-        'activity_hours_weight': 0.017,
-        'available_at_weight': 0.0,
-        'university_weight': 0.2,
+        'budget_weight': Profile.budget_weight,
+        'age_similarity_weight': Profile.age_similarity_weight,
+        'origin_country_weight': Profile.origin_country_weight,
+        'course_weight': Profile.course_weight,
+        'occupation_weight': Profile.occupation_weight,
+        'work_industry_weight': Profile.work_industry_weight,
+        'smoking_weight': Profile.smoking_weight,
+        'activity_hours_weight': Profile.activity_hours_weight,
+        'available_at_weight': Profile.available_at_weight,
+        'university_weight': Profile.university_weight,
     }
     
     # Apply age-based multipliers to the base weights
