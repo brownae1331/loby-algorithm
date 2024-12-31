@@ -147,7 +147,7 @@ def calculate_age(birth_date: date) -> int:
     return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
 
-def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> None:
+def generate_likes(starting_profile: Profile, current_profile: Profile, profile_list: List[Profile]) -> None:
     # Print initial weights
     PrintFunctions.print_weights(current_profile, "Initial")
     
@@ -183,19 +183,73 @@ def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> Non
     print("\nAvailable profiles have been exported to 'available_profiles.xlsx'")
 
     profiles_liked = 0
-    while profiles_liked < 5:  # Changed != to < for clarity
+    while profiles_liked < 5:
         user_id = int(input("Enter the User ID for Alex to like: "))
-        # Find the profile with the given user ID
         liked_profile = next((p for p in profile_list if p.user_id == user_id), None)
         if liked_profile:
             profiles_liked += 1
             days = int(input("Days: "))
             current_profile.likes.append([liked_profile, days])
             
-            # When we reach 5 likes, update and print the weights
+            # When we reach 5 likes, update weights and recalculate scores
             if profiles_liked == 5:
                 current_profile = modify_weights_with_weighted_average(current_profile, LEARNING_RATE)
                 PrintFunctions.print_weights(current_profile, f"After {len(current_profile.likes)} Likes")
+                
+                # Calculate and export updated scores
+                initial_scores = []
+                overall_scores = []
+                
+                # Get initial scores
+                for profile in profile_list:
+                    initial_score = calculate_overall_score(starting_profile, profile)
+                    initial_scores.append((profile, initial_score))
+                
+                # Get updated scores
+                for profile in profile_list:
+                    # Copy the updated weights
+                    profile.budget_weight = current_profile.budget_weight
+                    profile.age_similarity_weight = current_profile.age_similarity_weight
+                    profile.origin_country_weight = current_profile.origin_country_weight
+                    profile.course_weight = current_profile.course_weight
+                    profile.occupation_weight = current_profile.occupation_weight
+                    profile.work_industry_weight = current_profile.work_industry_weight
+                    profile.smoking_weight = current_profile.smoking_weight
+                    profile.activity_hours_weight = current_profile.activity_hours_weight
+                    profile.university_weight = current_profile.university_weight
+                    
+                    overall_score = calculate_overall_score(current_profile, profile)
+                    overall_scores.append((profile, overall_score))
+                
+                # Create dictionary mapping profile ID to initial score
+                initial_scores_dict = {profile.user_id: score for profile, score in initial_scores}
+                
+                # Create and export updated profiles data
+                profiles_data = [{
+                    'Initial Score': round(initial_scores_dict[profile.user_id], 2),
+                    'Updated Score': round(score, 2),
+                    'Score Change': round(score - initial_scores_dict[profile.user_id], 2),
+                    'Profile ID': profile.user_id,
+                    'Name': f"{profile.first_name} {profile.last_name}",
+                    'Age': calculate_age(profile.birth_date),
+                    'Origin Country': profile.origin_country,
+                    'Occupation': profile.occupation,
+                    'Work Industry': profile.work_industry,
+                    'Course': profile.course,
+                    'Activity Hours': profile.activity_hours,
+                    'Smoking': profile.smoking,
+                    'Rent Budget': f"£{profile.rent_budget[0]}-£{profile.rent_budget[1]}",
+                    'University': profile.university_id,
+                } for profile, score in overall_scores]
+                
+                # Create DataFrame and sort by Updated Score
+                results_df = pd.DataFrame(profiles_data)
+                results_df = results_df.sort_values('Updated Score', ascending=False)
+                
+                # Export to Excel
+                results_df.to_excel('profile_matches.xlsx', index=False, engine='openpyxl')
+                print("\nUpdated scores exported to profile_matches.xlsx")
+                
                 # Reset counter to allow for next batch
                 profiles_liked = 0
         else:

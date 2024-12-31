@@ -41,64 +41,15 @@ def run():
     profile_objects = initialize_profile_list()
     profile_list = assign_profiles_to_profile_list(starting_profile, profile_objects)
     
-    # Print budget and age scores for specific profiles
-    # target_profiles = [248, 271]
-    # for profile in profile_list:
-    #     if profile.user_id in target_profiles:
-    #         budget_score = CalculateScoreFunctions.calculate_budget_overlap_score(
-    #             starting_profile.rent_budget, 
-    #             profile.rent_budget
-    #         )
-    #         age_score = CalculateScoreFunctions.calculate_age_similarity_score(
-    #             calculate_age(starting_profile.birth_date),
-    #             calculate_age(profile.birth_date)
-    #         )
-            
-    #         print(f"\nProfile {profile.user_id}:")
-    #         print(f"Budget range: £{profile.rent_budget[0]}-£{profile.rent_budget[1]}")
-    #         print(f"Budget compatibility score: {budget_score}")
-    #         print(f"Starting profile budget: £{starting_profile.rent_budget[0]}-£{starting_profile.rent_budget[1]}")
-    #         print(f"Age: {calculate_age(profile.birth_date)}")
-    #         print(f"Age compatibility score: {age_score}")
-    #         print(f"Starting profile age preference: {starting_profile.age_preference[0]}-{starting_profile.age_preference[1]}")
-
-    generate_likes(starting_profile, profile_list)
-    # PrintFunctions.print_weights(starting_profile, "Initial")
-    current_profile = modify_weights_with_weighted_average(starting_profile)
-    # PrintFunctions.print_weights(current_profile, "Updated")
-
+    # Calculate initial scores before likes
+    initial_scores = []
     for profile in profile_list:
-        overall_score: float = calculate_overall_score(current_profile, profile)
-        overall_scores.append((profile, overall_score))
+        initial_score = calculate_overall_score(starting_profile, profile)
+        initial_scores.append((profile, initial_score))
+    
+    generate_likes(starting_profile, starting_profile, profile_list)
 
-    # Sort profiles by overall score from highest to lowest
-    overall_scores_sorted = sorted(overall_scores, key=lambda x: x[1], reverse=True)
-    # PrintFunctions.print_sorted_profiles_by_score(overall_scores_sorted)
 
-    # ALL CODE ABOVE HERE
-    profiles_data = [{
-        'Score': round(score, 2),
-        'Profile ID': profile.user_id,
-        'Name': f"{profile.first_name} {profile.last_name}",
-        'Age': calculate_age(profile.birth_date),
-        'Origin Country': profile.origin_country,
-        'Occupation': profile.occupation,
-        'Work Industry': profile.work_industry,
-        'Course': profile.course,
-        'Activity Hours': profile.activity_hours,
-        'Smoking': profile.smoking,
-        'Rent Budget': f"£{profile.rent_budget[0]}-£{profile.rent_budget[1]}",
-        'University': profile.university_id,
-    } for profile, score in overall_scores_sorted]
-
-    results_df = pd.DataFrame(profiles_data)
-
-    # Export to Excel
-    results_df.to_excel('profile_matches.xlsx', index=False, engine='openpyxl')
-    # print("Results have been exported to 'profile_matches.xlsx'")
-
-    # Print the database of profiles
-    print(results_df)
 
 if __name__ == "__main__":
     run()
