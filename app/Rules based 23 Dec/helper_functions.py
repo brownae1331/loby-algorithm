@@ -13,7 +13,7 @@ DECAY_RATE = 0.01
 LEARNING_RATE = 0.1
 
 # Weight boundaries
-MIN_WEIGHT = 0.05
+MIN_WEIGHT = 0.005
 MAX_WEIGHT = 2.0
 
 # Age similarity constants
@@ -25,7 +25,7 @@ AGE_DIVISOR = 9
 NUM_PROFILES = 500
 
 
-def calculate_k_factor(days, decay_rate) -> float:
+def calculate_k_factor(days, DECAY_RATE) -> float:
     """
     Calculate the k-factor based on the time difference from the liked_time.
     The k-factor decreases by the decay_rate for each day since the liked_time.
@@ -46,7 +46,6 @@ class PrintFunctions:
         print(f"Work Industry Weight: {profile.work_industry_weight}")
         print(f"Smoking Weight: {profile.smoking_weight}")
         print(f"Activity Hours Weight: {profile.activity_hours_weight}")
-        print(f"Available At Weight: {profile.available_at_weight}")
         print(f"University Weight: {profile.university_weight}")
 
     @staticmethod
@@ -149,6 +148,9 @@ def calculate_age(birth_date: date) -> int:
 
 
 def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> None:
+    # Print initial weights
+    PrintFunctions.print_weights(current_profile, "Initial")
+    
     # Create a list to store profile data
     available_profiles_data = []
     
@@ -156,9 +158,7 @@ def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> Non
     for profile in profile_list:
         # Print each profile's basic information
         print(f"ID: {profile.user_id}, "
-              f"Name: {profile.first_name} {profile.last_name}, "
               f"Age: {calculate_age(profile.birth_date)}, "
-              f"Gender: {profile.gender}, "
               f"Budget: £{profile.rent_budget[0]}-£{profile.rent_budget[1]}")
         
         # Add profile data to list for Excel export
@@ -183,7 +183,7 @@ def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> Non
     print("\nAvailable profiles have been exported to 'available_profiles.xlsx'")
 
     profiles_liked = 0
-    while profiles_liked != 5:
+    while profiles_liked < 5:  # Changed != to < for clarity
         user_id = int(input("Enter the User ID for Alex to like: "))
         # Find the profile with the given user ID
         liked_profile = next((p for p in profile_list if p.user_id == user_id), None)
@@ -191,8 +191,15 @@ def generate_likes(current_profile: Profile, profile_list: List[Profile]) -> Non
             profiles_liked += 1
             days = int(input("Days: "))
             current_profile.likes.append([liked_profile, days])
+            
+            # When we reach 5 likes, update and print the weights
+            if profiles_liked == 5:
+                current_profile = modify_weights_with_weighted_average(current_profile, LEARNING_RATE)
+                PrintFunctions.print_weights(current_profile, f"After {len(current_profile.likes)} Likes")
+                # Reset counter to allow for next batch
+                profiles_liked = 0
         else:
-            print(f"No profile found with User ID: {user_id}") 
+            print(f"No profile found with User ID: {user_id}")
 
 
 def assign_profiles_to_profile_list(starting_profile: Profile, profile_objects: List[Profile], profile_ids: Union[int, List[int]] = None) -> List[Profile]:
@@ -342,7 +349,6 @@ def modify_weights_with_weighted_average(current_profile: Profile, LEARNING_RATE
         'work_industry_weight': 0.0,
         'smoking_weight': 0.0,
         'activity_hours_weight': 0.0,
-        'available_at_weight' : 0.0,
         'university_weight': 0.0,
     }
 
@@ -379,23 +385,13 @@ def modify_weights_with_weighted_average(current_profile: Profile, LEARNING_RATE
         current_weight = getattr(current_profile, key)
         
         # Calculate weight adjustment
-        if current_score > PREFERENCE_THRESHOLD:
-            weight_adjustment = LEARNING_RATE * (current_score - PREFERENCE_THRESHOLD)
-        else:
-            weight_adjustment = -LEARNING_RATE * (PREFERENCE_THRESHOLD - current_score)
+        weight_adjustment = LEARNING_RATE * (current_score - PREFERENCE_THRESHOLD)
 
-        # Apply weight adjustment with lower bounds
+        # Apply weight adjustment with bounds
         new_weight = current_weight + weight_adjustment
         new_weight = max(MIN_WEIGHT, min(MAX_WEIGHT, new_weight))
         
         setattr(current_profile, key, new_weight)
-
-    current_date = pd.to_datetime('today')
-    available_at_date = pd.to_datetime(current_profile.available_at)
-    days_difference = abs((available_at_date - current_date).days)
-    avg_scores['available_at_weight'] += max(0.0,
-                                             1 - (days_difference / 365))  # Normalize to a value between 0 and 1
-    setattr(current_profile, 'available_at_weight', avg_scores['available_at_weight'])
 
     return current_profile
 
@@ -466,7 +462,6 @@ def get_age_based_weights(birth_date: date) -> dict:
         'work_industry_weight': Profile.work_industry_weight,
         'smoking_weight': Profile.smoking_weight,
         'activity_hours_weight': Profile.activity_hours_weight,
-        'available_at_weight': Profile.available_at_weight,
         'university_weight': Profile.university_weight,
     }
     

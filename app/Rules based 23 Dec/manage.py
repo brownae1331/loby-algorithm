@@ -68,7 +68,7 @@ def run():
     # PrintFunctions.print_weights(current_profile, "Updated")
 
     for profile in profile_list:
-        overall_score: float = calculate_overall_score(starting_profile, profile)
+        overall_score: float = calculate_overall_score(current_profile, profile)
         overall_scores.append((profile, overall_score))
 
     # Sort profiles by overall score from highest to lowest
