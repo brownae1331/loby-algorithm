@@ -9,7 +9,7 @@ from generate_profiles import Profile
 
 # Preference and learning constants
 PREFERENCE_THRESHOLD = 0.5
-DECAY_RATE = 0.01
+DECAY_RATE = 0.1
 LEARNING_RATE = 0.1
 
 # Weight boundaries
@@ -224,27 +224,29 @@ def generate_likes(starting_profile: Profile, current_profile: Profile, profile_
                 # Create dictionary mapping profile ID to initial score
                 initial_scores_dict = {profile.user_id: score for profile, score in initial_scores}
                 
-                # Create and export updated profiles data
-                profiles_data = [{
-                    'Initial Score': round(initial_scores_dict[profile.user_id], 2),
-                    'Updated Score': round(score, 2),
-                    'Score Change': round(score - initial_scores_dict[profile.user_id], 2),
-                    'Profile ID': profile.user_id,
-                    'Name': f"{profile.first_name} {profile.last_name}",
-                    'Age': calculate_age(profile.birth_date),
-                    'Origin Country': profile.origin_country,
-                    'Occupation': profile.occupation,
-                    'Work Industry': profile.work_industry,
-                    'Course': profile.course,
-                    'Activity Hours': profile.activity_hours,
-                    'Smoking': profile.smoking,
-                    'Rent Budget': f"£{profile.rent_budget[0]}-£{profile.rent_budget[1]}",
-                    'University': profile.university_id,
-                } for profile, score in overall_scores]
+                # Create profiles data while maintaining the order from profile_list
+                profiles_data = []
+                for profile in profile_list:  # Use profile_list to maintain order
+                    score = next(score for p, score in overall_scores if p.user_id == profile.user_id)
+                    profiles_data.append({
+                        'Initial Score': round(initial_scores_dict[profile.user_id], 2),
+                        'Updated Score': round(score, 2),
+                        'Score Change': round(score - initial_scores_dict[profile.user_id], 2),
+                        'Profile ID': profile.user_id,
+                        'Name': f"{profile.first_name} {profile.last_name}",
+                        'Age': calculate_age(profile.birth_date),
+                        'Origin Country': profile.origin_country,
+                        'Occupation': profile.occupation,
+                        'Work Industry': profile.work_industry,
+                        'Course': profile.course,
+                        'Activity Hours': profile.activity_hours,
+                        'Smoking': profile.smoking,
+                        'Rent Budget': f"£{profile.rent_budget[0]}-£{profile.rent_budget[1]}",
+                        'University': profile.university_id,
+                    })
                 
-                # Create DataFrame and sort by Updated Score
+                # Create DataFrame without sorting
                 results_df = pd.DataFrame(profiles_data)
-                results_df = results_df.sort_values('Updated Score', ascending=False)
                 
                 # Export to Excel
                 results_df.to_excel('profile_matches.xlsx', index=False, engine='openpyxl')
@@ -280,7 +282,7 @@ def assign_profiles_to_profile_list(starting_profile: Profile, profile_objects: 
 
 
 def initialize_profile_list() -> List[Profile]:
-    np.random.seed(36)
+    np.random.seed(49)
 
     # Ensure all arrays have the same length
     num_profiles = 500
