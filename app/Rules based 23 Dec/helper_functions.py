@@ -9,7 +9,7 @@ from generate_profiles import Profile
 
 # Preference and learning constants
 PREFERENCE_THRESHOLD = 0.5
-DECAY_RATE = 0.1
+DECAY_RATE = 0.7
 LEARNING_RATE = 0.1
 
 # Weight boundaries
@@ -25,13 +25,12 @@ AGE_DIVISOR = 9
 NUM_PROFILES = 500
 
 
-def calculate_k_factor(days, DECAY_RATE) -> float:
+def calculate_k_factor(time_difference_days, DECAY_RATE) -> float:
     """
     Calculate the k-factor based on the time difference from the liked_time.
-    The k-factor decreases by the decay_rate for each day since the liked_time.
+    The k-factor decreases exponentially based on the decay_rate for each day since the liked_time.
     """
-    time_difference_days = days #(current_time - liked_time).days
-    k_factor = max(0.0, 1.0 - DECAY_RATE * time_difference_days)
+    k_factor = np.exp(-DECAY_RATE * time_difference_days)
     return k_factor
 
 class PrintFunctions:
@@ -411,25 +410,25 @@ def modify_weights_with_weighted_average(current_profile: Profile, LEARNING_RATE
     # Calculate average scores from liked profiles
     for [liked_profile,days] in current_profile.likes:
         avg_scores['budget_weight'] += CalculateScoreFunctions.calculate_budget_overlap_score(
-            current_profile.rent_budget, liked_profile.rent_budget) * calculate_k_factor(days, DECAY_RATE)
+            current_profile.rent_budget, liked_profile.rent_budget)
         avg_scores['age_similarity_weight'] += CalculateScoreFunctions.calculate_age_similarity_score(
             calculate_age(current_profile.birth_date),
-            calculate_age(liked_profile.birth_date)) * calculate_k_factor(days, DECAY_RATE)
+            calculate_age(liked_profile.birth_date))
         avg_scores['origin_country_weight'] += ComparisonFunctions.compare_origin_country(
-            current_profile.origin_country, liked_profile.origin_country) * calculate_k_factor(days, DECAY_RATE)
+            current_profile.origin_country, liked_profile.origin_country)
         avg_scores['course_weight'] += ComparisonFunctions.compare_course(
-            current_profile.course, liked_profile.course) * calculate_k_factor(days, DECAY_RATE)
+            current_profile.course, liked_profile.course)
         avg_scores['occupation_weight'] += ComparisonFunctions.compare_occupation(
-            current_profile.occupation, liked_profile.occupation) * calculate_k_factor(days, DECAY_RATE)
+            current_profile.occupation, liked_profile.occupation)
         avg_scores['work_industry_weight'] += ComparisonFunctions.compare_work_industry(
-            current_profile.work_industry, liked_profile.work_industry) * calculate_k_factor(days, DECAY_RATE)
+            current_profile.work_industry, liked_profile.work_industry)
         smoking_score = ComparisonFunctions.compare_smoking(current_profile.smoking, liked_profile.smoking)
         if smoking_score != -1:
-            avg_scores['smoking_weight'] += smoking_score * calculate_k_factor(days, DECAY_RATE)
+            avg_scores['smoking_weight'] += smoking_score
         avg_scores['activity_hours_weight'] += ComparisonFunctions.compare_activity_hours(
-            current_profile.activity_hours, liked_profile.activity_hours) * calculate_k_factor(days, DECAY_RATE)
+            current_profile.activity_hours, liked_profile.activity_hours)
         avg_scores['university_weight'] += ComparisonFunctions.compare_university(
-            current_profile.university_id, liked_profile.university_id) * calculate_k_factor(days, DECAY_RATE)
+            current_profile.university_id, liked_profile.university_id)
 
     # Calculate averages
     for key in avg_scores:
@@ -440,13 +439,10 @@ def modify_weights_with_weighted_average(current_profile: Profile, LEARNING_RATE
         current_score = avg_scores[key]
         current_weight = getattr(current_profile, key)
         
-        # Calculate weight adjustment
-        weight_adjustment = LEARNING_RATE * (current_score - PREFERENCE_THRESHOLD)
-
-        # Apply weight adjustment with bounds
+        # Calculate weight adjustment and scale it by k_factor
+        weight_adjustment = LEARNING_RATE * (current_score - PREFERENCE_THRESHOLD) * calculate_k_factor(days, DECAY_RATE)
         new_weight = current_weight + weight_adjustment
         new_weight = max(MIN_WEIGHT, min(MAX_WEIGHT, new_weight))
-        
         setattr(current_profile, key, new_weight)
 
     return current_profile

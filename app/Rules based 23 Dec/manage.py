@@ -41,44 +41,56 @@ def run():
     profile_objects = initialize_profile_list()
     profile_list = assign_profiles_to_profile_list(starting_profile, profile_objects)
     
-    # Calculate initial scores and create tuples of (profile, score)
-    scored_profiles = []
-    high_scoring_profiles = []
-    for profile in profile_list:
-        score = calculate_overall_score(starting_profile, profile)
-        if score >= 9:
-            high_scoring_profiles.append((profile, score))
-        else:
-            scored_profiles.append((profile, score))
+    likes_counter = 0
+    weights_adjusted = False  # Add flag to track if weights have been adjusted
     
-    # Sort profiles by score
-    scored_profiles.sort(key=lambda x: x[1], reverse=True)
-    
-    # Create blocks of 10 and randomize each block
-    final_profile_list = []
-    block_size = 10
-    
-    for i in range(0, len(scored_profiles), block_size):
-        # Get the current block
-        block = scored_profiles[i:i + block_size]
-        # Randomize the block
-        random.shuffle(block)
+    while profile_list:  # Continue as long as there are profiles to process
+        # Calculate scores and create blocks only for remaining profiles
+        scored_profiles = []
+        high_scoring_profiles = []
+        for profile in profile_list:
+            score = calculate_overall_score(starting_profile, profile)
+            if score >= 9:
+                high_scoring_profiles.append((profile, score))
+            else:
+                scored_profiles.append((profile, score))
         
-        # Insert a high-scoring profile if available
-        if high_scoring_profiles:
-            high_score_profile = high_scoring_profiles.pop(0)
-            insert_position = random.randint(0, len(block))
-            block.insert(insert_position, high_score_profile)
+        # Sort profiles by score
+        scored_profiles.sort(key=lambda x: x[1], reverse=True)
+        
+        # Create blocks of 10 and randomize each block
+        final_profile_list = []
+        block_size = 10
+        
+        for i in range(0, len(scored_profiles), block_size):
+            block = scored_profiles[i:i + block_size]
+            random.shuffle(block)
             
-        final_profile_list.extend(block)
-    
-    # If any high-scoring profiles remain, add them to the end
-    final_profile_list.extend(high_scoring_profiles)
-    
-    # Update profile_list with the new ordering
-    profile_list = [profile for profile, _ in final_profile_list]
-    
-    generate_likes(starting_profile, starting_profile, profile_list)
+            if high_scoring_profiles:
+                high_score_profile = high_scoring_profiles.pop(0)
+                insert_position = random.randint(0, len(block))
+                block.insert(insert_position, high_score_profile)
+                
+            final_profile_list.extend(block)
+        
+        final_profile_list.extend(high_scoring_profiles)
+        
+        # Update profile_list with the new ordering
+        profile_list = [profile for profile, _ in final_profile_list]
+        
+        # Process profiles and handle likes
+        liked_profiles = generate_likes(starting_profile, starting_profile, profile_list)
+        
+        # Remove liked profiles from profile_list
+        profile_list = [p for p in profile_list if p not in liked_profiles]
+        
+        # Update likes counter
+        likes_counter += len(liked_profiles)
+        
+        # Only break to rerank if we haven't adjusted weights yet and have 5 or more likes
+        if not weights_adjusted and likes_counter >= 5:
+            weights_adjusted = True  # Set flag to true after first adjustment
+            likes_counter = 0  # Reset counter
 
 
 
