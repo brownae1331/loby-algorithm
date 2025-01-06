@@ -18,6 +18,7 @@ def profile_to_text(profile: Profile) -> str:
     Origin Country: {profile.origin_country}
     Occupation: {profile.occupation}
     Work Industry: {profile.work_industry}
+    University: {profile.university_id}
     Course: {profile.course}
     Activity Hours: {profile.activity_hours}
     Smoking: {profile.smoking}
@@ -36,7 +37,7 @@ def upload_profiles_to_pinecone():
     print("Pinecone initialized")  # Debug print
     
     # Create or get index
-    index_name = "roommate-profiles3"
+    index_name = "roommate-profiles000"
     if index_name not in pc.list_indexes():
         print(f"Creating new index: {index_name}")  # Debug print
         pc.create_index(
