@@ -2,7 +2,6 @@ import pandas as pd
 from typing import List, Tuple
 from helper_functions import PrintFunctions, generate_likes, modify_weights_with_weighted_average, calculate_overall_score, calculate_age, assign_profiles_to_profile_list
 from generate_profiles import Profile
-import openpyxl
 import random
 
 # Sam's profile (updated to match glop's exactly)

@@ -1,68 +1,9 @@
-import pandas as pd
 import numpy as np
 from typing import List, Dict, Tuple
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from generate_profiles2 import Profile
-
-class UserPreferenceLearner:
-    def __init__(self, min_swipes: int = 20):
-        self.min_swipes_for_personalization = min_swipes
-        self.user_preferences: Dict[int, Dict] = {}
-        
-        # Initial weights from Rules based approach
-        self.default_weights = {
-            'budget_weight': 1.0,
-            'age_similarity_weight': 1.0,
-            'origin_country_weight': 1.0,
-            'course_weight': 1.0,
-            'occupation_weight': 1.0,
-            'work_industry_weight': 1.0,
-            'smoking_weight': 1.0,
-            'activity_hours_weight': 1.0,
-            'university_weight': 1.0
-        }
-        
-    def learn_initial_preferences(self, user_id: int, swipe_history: List[Tuple[Profile, bool]]) -> Dict:
-        """
-        Learn initial user preferences from first few swipes
-        Returns dict of feature weights
-        """
-        if len(swipe_history) < self.min_swipes_for_personalization:
-            return self.default_weights
-            
-        weights = self.default_weights.copy()
-        liked_profiles = [profile for profile, liked in swipe_history if liked]
-        
-        if liked_profiles:
-            # Calculate average features of liked profiles
-            avg_budget: float = np.mean([p.rent_budget[0] for p in liked_profiles])
-            avg_age: float = np.mean([calculate_age(p.birth_date) for p in liked_profiles])
-            
-            # Adjust weights based on variance in liked profiles
-            weights['budget_weight'] = self._calculate_feature_importance(
-                [p.rent_budget[0] for p in liked_profiles]
-            )
-            weights['age_similarity_weight'] = self._calculate_feature_importance(
-                [calculate_age(p.birth_date) for p in liked_profiles]
-            )
-            # ... adjust other weights similarly
-            
-        self.user_preferences[user_id] = weights
-        return weights
-        
-    def _calculate_feature_importance(self, values: List[float]) -> float:
-        """
-        Calculate feature importance based on variance
-        Low variance = High importance (user has strong preference)
-        """
-        if not values:
-            return self.default_weights['budget_weight']
-            
-        variance = np.var(values)
-        # Convert variance to weight: higher variance = lower weight
-        weight = 1.0 / (1.0 + variance)
-        return min(max(weight, 0.1), 2.0)  # Clamp between 0.1 and 2.0
+from basic_approach import calculate_age
 
 class XGBoostRecommender:
     def __init__(self):
