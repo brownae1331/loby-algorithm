@@ -5,7 +5,7 @@ from typing import Optional, List, Union, Tuple, Any
 
 from matplotlib.style.core import available
 
-from generate_profiles import Profile
+from app.rules_based.generate_profiles import Profile
 
 # Preference and learning constants
 PREFERENCE_THRESHOLD = 0.5

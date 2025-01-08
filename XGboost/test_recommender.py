@@ -1,4 +1,5 @@
-from manage2 import XGBoostRecommender, UserPreferenceLearner
+from app.rules_based.helper_functions import calculate_age
+from manage2 import XGBoostRecommender #, UserPreferenceLearner
 from generate_profiles2 import Profile
 import pandas as pd
 from datetime import datetime
