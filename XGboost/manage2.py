@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from generate_profiles2 import Profile
-from basic_approach import calculate_age
+from app.rules_based.helper_functions import calculate_age
 
 class XGBoostRecommender:
     def __init__(self):
