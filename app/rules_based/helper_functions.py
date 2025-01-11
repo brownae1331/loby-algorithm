@@ -4,6 +4,7 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List, Union, Tuple, Any
 
 from matplotlib.style.core import available
+from countryinfo import CountryInfo
 
 from app.rules_based.generate_profiles import Profile
 
@@ -103,22 +104,100 @@ class ComparisonFunctions:
     @staticmethod
     def compare_origin_country(attr1, attr2) -> float:
         """Compare origin country between profiles."""
-        return float(attr1 == attr2)
+        if attr1 == attr2:
+            return 1.0
+
+        info1 = CountryInfo(attr1)
+        info2 = CountryInfo(attr2)
+
+        region1 = info1.info().get('region')
+        region2 = info2.info().get('region')
+        subregion1 = info1.info().get('subregion')
+        subregion2 = info2.info().get('subregion')
+
+        if region1 == region2:
+            if subregion1 == subregion2:
+                return 0.9  # High similarity if both region and subregion match
+            return 0.7  # Moderate similarity if only region matches
+        elif subregion1 == subregion2:
+            return 0.5  # Lower similarity if only subregion matches
+        else:
+            return 0.3  # Minimal similarity if neither matches
 
     @staticmethod
     def compare_course(attr1, attr2) -> float:
         """Compare the course between profiles."""
-        return float(attr1 == attr2)
+
+        science_courses = {"Computer Science", "Engineering", "Physics", "Chemistry", "Biology"}
+        arts_courses = {"History", "Literature", "Philosophy", "Art", "Music"}
+        business_courses = {"Business", "Economics", "Finance", "Marketing"}
+
+        if attr1 == attr2:
+            return 1.0
+
+        # Determine the category of each course
+        def get_course_category(course: str) -> str:
+            if course in science_courses:
+                return "Science"
+            elif course in arts_courses:
+                return "Arts"
+            elif course in business_courses:
+                return "Business"
+            else:
+                return "Other"
+
+        category1 = get_course_category(attr1)
+        category2 = get_course_category(attr2)
+
+        # Assign similarity scores based on categories
+        if category1 == category2:
+            return 0.8  # High similarity if both courses are in the same category
+        else:
+            return 0.4  # Lower similarity if courses are in different categories
 
     @staticmethod
     def compare_occupation(attr1, attr2) -> float:
         """Compare the occupation between profiles."""
-        return float(attr1 == attr2)
+        if attr1 == attr2:
+            return 1.0
+
+        occupation_similarity = {
+            ("Working", "Student"): 0.6,
+            ("Student", "Working"): 0.6,
+            ("Cruising", "Student"): 0.4,
+            ("Student", "Cruising"): 0.4
+        }
+
+        return occupation_similarity.get((attr1, attr2), 0.0)
 
     @staticmethod
     def compare_work_industry(attr1, attr2) -> float:
         """Compare the work industry between profiles."""
-        return float(attr1 == attr2)
+
+        tech_industries = {"Tech", "Software", "IT"}
+        finance_industries = {"Finance", "Banking", "Investment"}
+        media_industries = {"Media", "Journalism", "Advertising"}
+
+        def get_work_industry_category(industry: str) -> str:
+            if industry in tech_industries:
+                return "Tech"
+            elif industry in finance_industries:
+                return "Finance"
+            elif industry in media_industries:
+                return "Media"
+            else:
+                return "Other"
+
+        if attr1 == attr2:
+            return 1.0
+
+        category1 = get_work_industry_category(attr1)
+        category2 = get_work_industry_category(attr2)
+
+        if category1 == category2:
+            return 0.8  # High similarity if both industries are in the same category
+        else:
+            return 0.4  # Lower similarity if industries are in different categories
 
     @staticmethod
     def compare_smoking(attr1, attr2) -> float:
@@ -135,10 +214,29 @@ class ComparisonFunctions:
     @staticmethod
     def compare_university(attr1, attr2) -> float:
         """Compare the university between profiles."""
-        if attr1 is None or attr2 is None:
-            return 0.0
-        return float(attr1 == attr2)
 
+        top_universities = {"Harvard", "MIT", "Stanford", "UCL", "Oxford"}
+        mid_tier_universities = {"KCL", "City", "QMU"}
+        other_universities = {"Other"}
+
+        def get_university_category(university: str) -> str:
+            if university in top_universities:
+                return "Top"
+            elif university in mid_tier_universities:
+                return "Mid"
+            else:
+                return "Other"
+
+        if attr1 == attr2:
+            return 1.0
+
+        category1 = get_university_category(attr1)
+        category2 = get_university_category(attr2)
+
+        if category1 == category2:
+            return 0.8  # High similarity if both universities are in the same category
+        else:
+            return 0.4  # Lower similarity if universities are in different categories
 
 def calculate_age(birth_date: date) -> int:
     """Calculate age from birth date."""
@@ -284,7 +382,7 @@ def initialize_profile_list() -> List[Profile]:
     np.random.seed(49)
 
     # Ensure all arrays have the same length
-    num_profiles = 500
+    num_profiles = 100
 
     # Generate a range of dates for the year 2024
     date_range = pd.date_range("2024-06-01", "2024-12-31")

@@ -3,9 +3,29 @@ from manage2 import XGBoostRecommender
 from generate_profiles2 import Profile
 import pandas as pd
 from datetime import datetime
+import xgboost as xgb
+
+from app.rules_based.helper_functions import initialize_profile_list, calculate_overall_score
+from generate_profiles2 import Profile
+import matplotlib.pyplot as plt
 
 
-def create_test_profile(user_id: int, budget: tuple, age: int, smoking: str, activity: str) -> Profile:
+def generate_swipe_history(profiles):
+    swipe_history = []
+    total_profiles = len(profiles)
+    for i, viewer_profile in enumerate(profiles):
+        for j, swiped_profile in enumerate(profiles):
+            if i != j:
+                score = calculate_overall_score(viewer_profile, swiped_profile)
+                liked = score >= 0.8  # Assuming a threshold of 0.8 for "like"
+                swipe_history.append((viewer_profile, swiped_profile, liked))
+            if (j + 1) % 100 == 0:
+                print(f"Processed {i + 1}/{total_profiles} viewer profiles")
+    return swipe_history
+
+
+
+def create_test_profile(user_id: int, budget: tuple[int, int], age: int, smoking: str, activity: str) -> Profile:
     """
     Helper function to create test profiles quickly.
     Uses the passed arguments to set various fields.
@@ -49,38 +69,34 @@ def create_test_profile(user_id: int, budget: tuple, age: int, smoking: str, act
 
 def test_recommender():
     # 1. Create some test profiles
-    test_profiles = [
-        create_test_profile(user_id=1, budget=(500, 700), age=25, smoking="No", activity="Night"),
-        create_test_profile(user_id=2, budget=(800, 1000), age=22, smoking="Yes", activity="Night"),
-        create_test_profile(user_id=3, budget=(600, 800), age=24, smoking="No", activity="Morning"),
-        create_test_profile(user_id=4, budget=(900, 1200), age=28, smoking="Yes", activity="Morning"),
-        create_test_profile(user_id=5, budget=(500, 600), age=23, smoking="No", activity="Night"),
-    ]
+    test_profiles = initialize_profile_list()
 
     # 2. Create swipe history (simulating user preferences).
     #    The tuple is (viewer_profile, candidate_profile, liked_bool).
-    swipe_history = [
-        (test_profiles[0], test_profiles[1], True),  # user_id=1 likes user_id=2
-        (test_profiles[1], test_profiles[3], False),  # user_id=2 dislikes user_id=4
-        (test_profiles[2], test_profiles[0], True),  # user_id=3 likes user_id=1
-        (test_profiles[3], test_profiles[2], False),  # user_id=4 dislikes user_id=3
-        (test_profiles[4], test_profiles[4], True),  # user_id=5 "likes" themselves, just a filler example
-    ]
+    swipe_history = generate_swipe_history(test_profiles)
 
     # 3. Initialize and train recommender
     recommender = XGBoostRecommender()
     recommender.train(swipe_history)
 
     # 4. Create a list of profiles we want to rank for a given viewer
-    swiped_profiles = initialize_profile_list()  # e.g. from DB or a small dummy set
+    swiped_profiles = test_profiles  # e.g. from DB or a small dummy set
 
     # 5. Get top-k recommendations (now returns list of (Profile, probability) tuples)
     recommendations = recommender.recommend_profiles(viewer_profile=test_profiles[0],
                                                      swiped_profiles=swiped_profiles,
-                                                     top_k=10)
+                                                     top_k=20)
+
+    profile1 = test_profiles[0]
 
     # 6. Print results
     print("\nRecommendations for user_id=1:")
+    print(f"Profile {profile1.user_id}:")
+    print(f"  Budget: £{profile1.rent_budget[0]}-{profile1.rent_budget[1]}")
+    print(f"  Age: {calculate_age(profile1.birth_date)}")
+    print(f"  Smoking: {profile1.smoking}")
+    print(f"  Activity: {profile1.activity_hours}")
+
     for profile, probability in recommendations:
         print(f"Profile {profile.user_id}:")
         print(f"  Budget: £{profile.rent_budget[0]}-{profile.rent_budget[1]}")
@@ -88,6 +104,26 @@ def test_recommender():
         print(f"  Smoking: {profile.smoking}")
         print(f"  Activity: {profile.activity_hours}")
         print(f"  Match Probability: {probability * 100:.1f}%\n")
+
+    booster = recommender.get_booster()
+    feature_importances = booster.get_score(importance_type='weight')
+
+    feature_names = [
+        "budget",
+        "birth date",
+        "origin country",
+        "course",
+        "occupation",
+        "work industry",
+        "smoking",
+        #"activity hours",
+        "university"
+    ]
+
+    # Print feature importances
+    print("Feature Importances:")
+    for feature, importance in zip(feature_names, feature_importances.values()):
+        print(f"{feature}: {importance}")
 
 
 if __name__ == "__main__":

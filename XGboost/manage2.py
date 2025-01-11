@@ -38,13 +38,14 @@ class XGBoostRecommender:
             help_func.ComparisonFunctions.compare_smoking(
                 viewer_profile.smoking, swiped_profile.smoking
             ),
-            help_func.ComparisonFunctions.compare_activity_hours(
-                viewer_profile.activity_hours, swiped_profile.activity_hours
-            ),
+            # help_func.ComparisonFunctions.compare_activity_hours(
+            #     viewer_profile.activity_hours, swiped_profile.activity_hours
+            # ),
             help_func.ComparisonFunctions.compare_university(
                 viewer_profile.university_id, swiped_profile.university_id
             )
         ]
+        print(f"Feature vector for viewer {viewer_profile.user_id} and swiped {swiped_profile.user_id}: {features}")
         return features
 
     def train(self, global_swipe_history: List[Tuple[Profile, Profile, bool]]):
@@ -86,13 +87,14 @@ class XGBoostRecommender:
         # Convert profiles to feature vector
         features = self._create_feature_vector(viewer_profile, swiped_profile)
         # Get probability of "liked" (index 1 is probability of class 1)
+
         return self.model.predict_proba([features])[0][1]
 
     def recommend_profiles(
             self,
             viewer_profile: Profile,
             swiped_profiles: List[Profile],
-            top_k: int = 10
+            top_k: int = 100
     ) -> List[Tuple[Profile, float]]:
         """
         Recommend top-k profiles for viewer using XGBoost predictions.
@@ -110,3 +112,9 @@ class XGBoostRecommender:
         # Sort by probability score and return top-k profiles (with their scores)
         sorted_candidates = sorted(scores, key=lambda x: x[1], reverse=True)
         return sorted_candidates[:top_k]
+
+    def get_booster(self):
+        if self.model is None:
+            raise ValueError("Model not trained yet!")
+        return self.model.get_booster()
+
