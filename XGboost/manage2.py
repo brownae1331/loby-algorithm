@@ -19,10 +19,9 @@ class XGBoostRecommender:
             help_func.CalculateScoreFunctions.calculate_budget_overlap_score(
                 viewer_profile.rent_budget, swiped_profile.rent_budget
             ),
-            help_func.CalculateScoreFunctions.calculate_age_similarity_score(
                 help_func.calculate_age(viewer_profile.birth_date),
                 help_func.calculate_age(swiped_profile.birth_date)
-            ),
+            ,
             help_func.ComparisonFunctions.compare_origin_country(
                 viewer_profile.origin_country, swiped_profile.origin_country
             ),
@@ -117,4 +116,8 @@ class XGBoostRecommender:
         if self.model is None:
             raise ValueError("Model not trained yet!")
         return self.model.get_booster()
+
+    def save_model(self, file_path):
+        self.model.save_model(file_path)
+
 

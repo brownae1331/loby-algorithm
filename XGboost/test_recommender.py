@@ -85,7 +85,7 @@ def test_recommender():
     # 5. Get top-k recommendations (now returns list of (Profile, probability) tuples)
     recommendations = recommender.recommend_profiles(viewer_profile=test_profiles[0],
                                                      swiped_profiles=swiped_profiles,
-                                                     top_k=20)
+                                                     top_k=50)
 
     profile1 = test_profiles[0]
 
@@ -97,13 +97,19 @@ def test_recommender():
     print(f"  Smoking: {profile1.smoking}")
     print(f"  Activity: {profile1.activity_hours}")
 
+    print("\nRecommendations for all specified features:")
     for profile, probability in recommendations:
         print(f"Profile {profile.user_id}:")
         print(f"  Budget: £{profile.rent_budget[0]}-{profile.rent_budget[1]}")
-        print(f"  Age: {calculate_age(profile.birth_date)}")
+        print(f"  Birth date: {calculate_age(profile.birth_date)}")
+        print(f"  Origin country: {profile.origin_country}")
+        print(f"  Course: {profile.course}")
+        print(f"  Occupation: {profile.occupation}")
+        print(f"  Work industry: {profile.work_industry}")
         print(f"  Smoking: {profile.smoking}")
-        print(f"  Activity: {profile.activity_hours}")
+        print(f"  University: {profile.university_id}")
         print(f"  Match Probability: {probability * 100:.1f}%\n")
+
 
     booster = recommender.get_booster()
     feature_importances = booster.get_score(importance_type='weight')
@@ -116,7 +122,7 @@ def test_recommender():
         "occupation",
         "work industry",
         "smoking",
-        #"activity hours",
+        "activity hours",
         "university"
     ]
 
@@ -124,6 +130,8 @@ def test_recommender():
     print("Feature Importances:")
     for feature, importance in zip(feature_names, feature_importances.values()):
         print(f"{feature}: {importance}")
+
+    recommender.save_model(r"C:\Users\jeetu\Desktop\loby-algorithm\XGboost")
 
 
 if __name__ == "__main__":
