@@ -41,21 +41,31 @@ def run():
     profile_objects = initialize_profile_list()
     profile_list = assign_profiles_to_profile_list(starting_profile, profile_objects)
     
+    # Add users_who_liked_me list - in real implementation, this would come from your database
+    users_who_liked_me = []  # TODO: Get this from your database
     likes_counter = 0
-    weights_adjusted = False  # Add flag to track if weights have been adjusted
-    
-    while profile_list:  # Continue as long as there are profiles to process
-        # Calculate scores and create blocks only for remaining profiles
+    weights_adjusted = False
+
+    while profile_list:
         scored_profiles = []
         high_scoring_profiles = []
+        liked_by_profiles = []  # New list for users who have liked us
+        
+        # Score and categorize profiles
         for profile in profile_list:
             score = calculate_overall_score(starting_profile, profile)
-            if score >= 9:
+            
+            # Check if this profile has liked us
+            if profile.user_id in users_who_liked_me:
+                score *= 1.5  # Boost score by 50%
+                liked_by_profiles.append((profile, score))
+            elif score >= 9:
                 high_scoring_profiles.append((profile, score))
             else:
                 scored_profiles.append((profile, score))
         
-        # Sort profiles by score
+        # Sort all profile lists by score
+        liked_by_profiles.sort(key=lambda x: x[1], reverse=True)
         scored_profiles.sort(key=lambda x: x[1], reverse=True)
         
         # Create blocks of 10 and randomize each block
@@ -66,14 +76,33 @@ def run():
             block = scored_profiles[i:i + block_size]
             random.shuffle(block)
             
+            # Take first 5 positions of the block
+            first_five = block[:5]
+            remaining_block = block[5:]
+            
+            # Add 3 liked_by profiles in the first 5 positions if available
+            liked_positions = random.sample(range(5), min(3, len(liked_by_profiles)))
+            for pos in sorted(liked_positions, reverse=True):
+                if liked_by_profiles:
+                    liked_profile = liked_by_profiles.pop(0)
+                    first_five.insert(pos, liked_profile)
+            
+            # Reconstruct the block
+            block = first_five + remaining_block
+            
+            # Add high scoring profile if available
             if high_scoring_profiles:
                 high_score_profile = high_scoring_profiles.pop(0)
                 insert_position = random.randint(0, len(block))
                 block.insert(insert_position, high_score_profile)
-                
+            
             final_profile_list.extend(block)
         
-        final_profile_list.extend(high_scoring_profiles)
+        # Add any remaining liked_by or high scoring profiles
+        if liked_by_profiles:
+            final_profile_list.extend(liked_by_profiles)
+        if high_scoring_profiles:
+            final_profile_list.extend(high_scoring_profiles)
         
         # Update profile_list with the new ordering
         profile_list = [profile for profile, _ in final_profile_list]
@@ -84,7 +113,7 @@ def run():
         # Remove liked profiles from profile_list
         profile_list = [p for p in profile_list if p not in liked_profiles]
         
-        # Update likes counter
+        # Update likes counter and weights
         likes_counter += len(liked_profiles)
         
         # Only break to rerank if we haven't adjusted weights yet and have 5 or more likes
