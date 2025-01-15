@@ -1,3 +1,14 @@
+import sys
+import os
+
+# Get the absolute path to the parent directory (Loby_Algo)
+current_dir = os.path.dirname(os.path.abspath(__file__))  # Gets XGBoost directory
+parent_dir = os.path.dirname(current_dir)                 # Gets Loby_Algo directory
+
+# Add the parent directory to Python's path
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 from app.rules_based.helper_functions import calculate_age, initialize_profile_list
 from manage2 import XGBoostRecommender
 from generate_profiles2 import Profile

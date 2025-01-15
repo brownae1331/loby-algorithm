@@ -1,9 +1,13 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 import numpy as np
 from typing import List, Tuple
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from generate_profiles2 import Profile
-import app.rules_based.helper_functions as xgb_func
+from app.rules_based import helper_functions as help_func
 import xgboost_helper_functions as xgb_func
 
 
@@ -17,31 +21,31 @@ class XGBoostRecommender:
         """
         features = [
             # Candidate features
-            xgb_func.CalculateScoreFunctions.calculate_budget_overlap_score(
+            help_func.CalculateScoreFunctions.calculate_budget_overlap_score(
                 viewer_profile.rent_budget, swiped_profile.rent_budget
             ),
-                xgb_func.calculate_age(viewer_profile.birth_date),
-                xgb_func.calculate_age(swiped_profile.birth_date)
+                help_func.calculate_age(viewer_profile.birth_date),
+                help_func.calculate_age(swiped_profile.birth_date)
             ,
-            xgb_func.ComparisonFunctions.compare_origin_country(
+            help_func.ComparisonFunctions.compare_origin_country(
                 viewer_profile.origin_country, swiped_profile.origin_country
             ),
-            xgb_func.ComparisonFunctions.compare_course(
+            help_func.ComparisonFunctions.compare_course(
                 viewer_profile.course, swiped_profile.course
             ),
-            xgb_func.ComparisonFunctions.compare_occupation(
+            help_func.ComparisonFunctions.compare_occupation(
                 viewer_profile.occupation, swiped_profile.occupation
             ),
-            xgb_func.ComparisonFunctions.compare_work_industry(
+            help_func.ComparisonFunctions.compare_work_industry(
                 viewer_profile.work_industry, swiped_profile.work_industry
             ),
-            xgb_func.ComparisonFunctions.compare_smoking(
+            help_func.ComparisonFunctions.compare_smoking(
                 viewer_profile.smoking, swiped_profile.smoking
             ),
-            # help_func.ComparisonFunctions.compare_activity_hours(
-            #     viewer_profile.activity_hours, swiped_profile.activity_hours
-            # ),
-            xgb_func.ComparisonFunctions.compare_university(
+            #xgb_func.ComparisonFunctions.compare_activity_hours(
+                #viewer_profile.activity_hours, swiped_profile.activity_hours
+            #),
+            help_func.ComparisonFunctions.compare_university(
                 viewer_profile.university_id, swiped_profile.university_id
             )
         ]
