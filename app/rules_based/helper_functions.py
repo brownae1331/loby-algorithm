@@ -1,3 +1,15 @@
+import os
+import sys
+import random
+
+# Check if the module is being run directly or being imported
+if __name__ == '__main__':
+    # Running directly - use absolute import
+    from generate_profiles import Profile
+else:
+    # Being imported - use relative import
+    from .generate_profiles import Profile
+
 import numpy as np
 import pandas as pd
 from datetime import datetime, date, timedelta
@@ -5,8 +17,6 @@ from typing import Optional, List, Union, Tuple, Any
 
 from matplotlib.style.core import available
 from countryinfo import CountryInfo
-
-from app.rules_based.generate_profiles import Profile
 
 # Preference and learning constants
 PREFERENCE_THRESHOLD = 0.5
@@ -38,15 +48,15 @@ class PrintFunctions:
     @staticmethod
     def print_weights(profile: Profile, title: str) -> None:
         print(f"\n{title} Weights:")
-        print(f"Budget Weight: {profile.budget_weight}")
-        print(f"Age Similarity Weight: {profile.age_similarity_weight}")
-        print(f"Origin Country Weight: {profile.origin_country_weight}")
-        print(f"Course Weight: {profile.course_weight}")
-        print(f"Occupation Weight: {profile.occupation_weight}")
-        print(f"Work Industry Weight: {profile.work_industry_weight}")
-        print(f"Smoking Weight: {profile.smoking_weight}")
-        print(f"Activity Hours Weight: {profile.activity_hours_weight}")
-        print(f"University Weight: {profile.university_weight}")
+        print(f"Budget Weight: {profile.budget_weight:.2f}")
+        print(f"Age Similarity Weight: {profile.age_similarity_weight:.2f}")
+        print(f"Origin Country Weight: {profile.origin_country_weight:.2f}")
+        print(f"Course Weight: {profile.course_weight:.2f}")
+        print(f"Occupation Weight: {profile.occupation_weight:.2f}")
+        print(f"Work Industry Weight: {profile.work_industry_weight:.2f}")
+        print(f"Smoking Weight: {profile.smoking_weight:.2f}")
+        print(f"Activity Hours Weight: {profile.activity_hours_weight:.2f}")
+        print(f"University Weight: {profile.university_weight:.2f}")
 
     @staticmethod
     def print_sorted_profiles_by_score(overall_scores_sorted: List[Tuple[Profile, float]]) -> None:
@@ -95,109 +105,37 @@ class CalculateScoreFunctions:
         """
         Calculate an age similarity score between the starting profile age and a target profile age.
         The score is calculated using the function y = 1 - (1/9) * x^2, where y is the score and x is the age difference.
+        Final score is normalized by dividing by 3 to ensure it's between 0 and 1.
         """
         age_difference = abs(starting_age - target_age)
-        return max(-2.0, min(1.0, 1 - (age_difference ** 2) / 9))
+        score = max(-2.0, min(1.0, 1 - (age_difference ** 2) / 9))
+        return (score + 2) / 3  # Normalize from [-2,1] to [0,1]
 
 
 class ComparisonFunctions:
     @staticmethod
     def compare_origin_country(attr1, attr2) -> float:
         """Compare origin country between profiles."""
-        if attr1 == attr2:
-            return 1.0
-
-        info1 = CountryInfo(attr1)
-        info2 = CountryInfo(attr2)
-
-        region1 = info1.info().get('region')
-        region2 = info2.info().get('region')
-        subregion1 = info1.info().get('subregion')
-        subregion2 = info2.info().get('subregion')
-
-        if region1 == region2:
-            if subregion1 == subregion2:
-                return 0.9  # High similarity if both region and subregion match
-            return 0.7  # Moderate similarity if only region matches
-        elif subregion1 == subregion2:
-            return 0.5  # Lower similarity if only subregion matches
-        else:
-            return 0.3  # Minimal similarity if neither matches
+        return float(attr1 == attr2)
 
     @staticmethod
     def compare_course(attr1, attr2) -> float:
         """Compare the course between profiles."""
-
-        science_courses = {"Computer Science", "Engineering", "Physics", "Chemistry", "Biology"}
-        arts_courses = {"History", "Literature", "Philosophy", "Art", "Music"}
-        business_courses = {"Business", "Economics", "Finance", "Marketing"}
-
-        if attr1 == attr2:
-            return 1.0
-
-        # Determine the category of each course
-        def get_course_category(course: str) -> str:
-            if course in science_courses:
-                return "Science"
-            elif course in arts_courses:
-                return "Arts"
-            elif course in business_courses:
-                return "Business"
-            else:
-                return "Other"
-
-        category1 = get_course_category(attr1)
-        category2 = get_course_category(attr2)
-
-        # Assign similarity scores based on categories
-        if category1 == category2:
-            return 0.8  # High similarity if both courses are in the same category
-        else:
-            return 0.4  # Lower similarity if courses are in different categories
+        if attr1 is None or attr2 is None:
+            return -1.0
+        return float(attr1 == attr2)
 
     @staticmethod
     def compare_occupation(attr1, attr2) -> float:
         """Compare the occupation between profiles."""
-        if attr1 == attr2:
-            return 1.0
-
-        occupation_similarity = {
-            ("Working", "Student"): 0.6,
-            ("Student", "Working"): 0.6,
-            ("Cruising", "Student"): 0.4,
-            ("Student", "Cruising"): 0.4
-        }
-
-        return occupation_similarity.get((attr1, attr2), 0.0)
+        return float(attr1 == attr2)
 
     @staticmethod
     def compare_work_industry(attr1, attr2) -> float:
         """Compare the work industry between profiles."""
-
-        tech_industries = {"Tech", "Software", "IT"}
-        finance_industries = {"Finance", "Banking", "Investment"}
-        media_industries = {"Media", "Journalism", "Advertising"}
-
-        def get_work_industry_category(industry: str) -> str:
-            if industry in tech_industries:
-                return "Tech"
-            elif industry in finance_industries:
-                return "Finance"
-            elif industry in media_industries:
-                return "Media"
-            else:
-                return "Other"
-
-        if attr1 == attr2:
-            return 1.0
-
-        category1 = get_work_industry_category(attr1)
-        category2 = get_work_industry_category(attr2)
-
-        if category1 == category2:
-            return 0.8  # High similarity if both industries are in the same category
-        else:
-            return 0.4  # Lower similarity if industries are in different categories
+        if attr1 is None or attr2 is None:
+            return -1.0
+        return float(attr1 == attr2)
 
     @staticmethod
     def compare_smoking(attr1, attr2) -> float:
@@ -214,29 +152,14 @@ class ComparisonFunctions:
     @staticmethod
     def compare_university(attr1, attr2) -> float:
         """Compare the university between profiles."""
+        if attr1 is None or attr2 is None:
+            return -1.0
+        return float(attr1 == attr2)
 
-        top_universities = {"Harvard", "MIT", "Stanford", "UCL", "Oxford"}
-        mid_tier_universities = {"KCL", "City", "QMU"}
-        other_universities = {"Other"}
-
-        def get_university_category(university: str) -> str:
-            if university in top_universities:
-                return "Top"
-            elif university in mid_tier_universities:
-                return "Mid"
-            else:
-                return "Other"
-
-        if attr1 == attr2:
-            return 1.0
-
-        category1 = get_university_category(attr1)
-        category2 = get_university_category(attr2)
-
-        if category1 == category2:
-            return 0.8  # High similarity if both universities are in the same category
-        else:
-            return 0.4  # Lower similarity if universities are in different categories
+    @staticmethod
+    def compare_gender(gender1: str, gender2: str) -> float:
+        """Compare gender between profiles."""
+        return float(gender1 == gender2)
 
 def calculate_age(birth_date: date) -> int:
     """Calculate age from birth date."""
@@ -379,10 +302,10 @@ def assign_profiles_to_profile_list(starting_profile: Profile, profile_objects: 
 
 
 def initialize_profile_list() -> List[Profile]:
-    np.random.seed(49)
+    np.random.seed(99)
 
     # Ensure all arrays have the same length
-    num_profiles = 100
+    num_profiles = 500
 
     # Generate a range of dates for the year 2024
     date_range = pd.date_range("2024-06-01", "2024-12-31")
@@ -503,10 +426,11 @@ def modify_weights_with_weighted_average(current_profile: Profile, LEARNING_RATE
         'smoking_weight': 0.0,
         'activity_hours_weight': 0.0,
         'university_weight': 0.0,
+        'gender_similarity_weight': 0.0,
     }
 
     # Calculate average scores from liked profiles
-    for [liked_profile,days] in current_profile.likes:
+    for [liked_profile, days] in current_profile.likes:
         avg_scores['budget_weight'] += CalculateScoreFunctions.calculate_budget_overlap_score(
             current_profile.rent_budget, liked_profile.rent_budget)
         avg_scores['age_similarity_weight'] += CalculateScoreFunctions.calculate_age_similarity_score(
@@ -527,6 +451,8 @@ def modify_weights_with_weighted_average(current_profile: Profile, LEARNING_RATE
             current_profile.activity_hours, liked_profile.activity_hours)
         avg_scores['university_weight'] += ComparisonFunctions.compare_university(
             current_profile.university_id, liked_profile.university_id)
+        avg_scores['gender_similarity_weight'] += ComparisonFunctions.compare_gender(
+            current_profile.gender, liked_profile.gender)
 
     # Calculate averages
     for key in avg_scores:
@@ -553,16 +479,35 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     budget_overlap_score: float = CalculateScoreFunctions.calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * profile.budget_weight
     age_similarity_score: float = CalculateScoreFunctions.calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
     origin_country_score: float = ComparisonFunctions.compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
-    course_score: float = ComparisonFunctions.compare_course(starting_profile.course, profile.course) * profile.course_weight
+    
+    course_score: float = ComparisonFunctions.compare_course(starting_profile.course, profile.course)
+    if course_score != -1:
+        course_score *= profile.course_weight
+    else:
+        course_score = 0.0
+        
     occupation_score: float = ComparisonFunctions.compare_occupation(starting_profile.occupation, profile.occupation) * profile.occupation_weight
-    work_industry_score: float = ComparisonFunctions.compare_work_industry(starting_profile.work_industry, profile.work_industry) * profile.work_industry_weight
+    
+    work_industry_score: float = ComparisonFunctions.compare_work_industry(starting_profile.work_industry, profile.work_industry)
+    if work_industry_score != -1:
+        work_industry_score *= profile.work_industry_weight
+    else:
+        work_industry_score = 0.0
+        
     smoking_score: float = ComparisonFunctions.compare_smoking(starting_profile.smoking, profile.smoking)
     if smoking_score != -1:
         smoking_score *= profile.smoking_weight
     else:
         smoking_score = 0.0
+        
     activity_hours_score: float = ComparisonFunctions.compare_activity_hours(starting_profile.activity_hours, profile.activity_hours) * profile.activity_hours_weight
-    university_score: float = ComparisonFunctions.compare_university(starting_profile.university_id, profile.university_id) * profile.university_weight
+    university_score: float = ComparisonFunctions.compare_university(starting_profile.university_id, profile.university_id)
+    if university_score != -1:
+        university_score *= profile.university_weight
+    else:
+        university_score = 0.0
+    
+    gender_similarity_score: float = ComparisonFunctions.compare_gender(starting_profile.gender, profile.gender) * profile.gender_similarity_weight
     
     overall_score: float = (
         budget_overlap_score +
@@ -573,7 +518,8 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
         work_industry_score +
         smoking_score +
         activity_hours_score +
-        university_score
+        university_score +
+        gender_similarity_score
     )
     
     # Calculate the maximum possible score (sum of all weights)
@@ -586,7 +532,8 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
         profile.work_industry_weight +
         profile.smoking_weight +
         profile.activity_hours_weight +
-        profile.university_weight
+        profile.university_weight +
+        profile.gender_similarity_weight
     )
     
     # Normalize the score between 0 and 1

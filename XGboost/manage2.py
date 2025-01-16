@@ -1,6 +1,17 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+# Get absolute path to project root and add to Python path
+project_root = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+app_path = os.path.join(project_root, 'app')
+
+# Add both paths
+sys.path.append(project_root)
+sys.path.append(app_path)
+
+print(f"Project root: {project_root}")  # Debug print
+print(f"App path: {app_path}")          # Debug print
+print(f"Python path: {sys.path}")       # Debug print
 
 import numpy as np
 from typing import List, Tuple
