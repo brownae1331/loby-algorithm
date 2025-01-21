@@ -28,7 +28,7 @@ def generate_swipe_history(profiles):
         for j, swiped_profile in enumerate(profiles):
             if i != j:
                 score = calculate_overall_score(viewer_profile, swiped_profile)
-                liked = score >= 0.8  # Assuming a threshold of 0.8 for "like"
+                liked = score >= 0.5  # Assuming a threshold of 0.8 for "like"
                 swipe_history.append((viewer_profile, swiped_profile, liked))
             if (j + 1) % 100 == 0:
                 print(f"Processed {i + 1}/{total_profiles} viewer profiles")
@@ -53,27 +53,26 @@ def create_test_profile(user_id: int, budget: tuple[int, int], age: int, smoking
         birth_date=pd.to_datetime(birth_date),
         is_verified=True,
         gender="Male",
-        description="Testing user profile",
         languages=["English"],
         origin_country="UK",
         occupation="Student",
-        work_industry=None,
-        university_id="UCL",
-        sexual_orientation="Heterosexual",
+        sexual_orientation="Straight",
         pets="Dog",
-        activity_hours=activity,
-        smoking=smoking,
+        activity_hours= 'EARLY_BIRD',
+        smoking='YES',
         extrovert_level=5,
         cleanliness_level=5,
         partying_level=5,
         sex_living_preference="Both",
         rent_location_preference="London",
         age_preference=(18, 35),
-        rent_budget=budget,
+        rent_budget=(600, 1000),
         last_filter_processed_at=pd.to_datetime("2023-06-01"),
         available_at="2024-09",
         roommate_count_preference=2,
         interests=["Reading", "Traveling", "Cooking"],
+        work_industry=None,
+        university_id="UCL",
         course="Computer Science"
     )
 

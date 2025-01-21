@@ -75,7 +75,11 @@ class CalculateScoreFunctions:
         - 1.0: if budgets have significant overlap (>50%)
         - 0.5: if budgets have some overlap (>0% but ≤50%)
         - 0.0: if budgets have no overlap
+        - -1.0: if either budget is None
         """
+        if starting_budget is None or target_budget is None:
+            return -1.0
+            
         start_min, start_max = starting_budget
         target_min, target_max = target_budget
         
@@ -476,7 +480,13 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     """
     Calculate the overall score for a profile by calling all the comparison functions and summing their weighted scores.
     """
-    budget_overlap_score: float = CalculateScoreFunctions.calculate_budget_overlap_score(starting_profile.rent_budget, profile.rent_budget) * profile.budget_weight
+    budget_overlap_score = CalculateScoreFunctions.calculate_budget_overlap_score(
+        starting_profile.rent_budget, profile.rent_budget)
+    if budget_overlap_score != -1:
+        budget_overlap_score *= profile.budget_weight
+    else:
+        budget_overlap_score = 0.0
+    
     age_similarity_score: float = CalculateScoreFunctions.calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
     origin_country_score: float = ComparisonFunctions.compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
     
@@ -524,7 +534,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     
     # Calculate the maximum possible score (sum of all weights)
     max_possible_score = (
-        profile.budget_weight +
+        (profile.budget_weight if budget_overlap_score != -1 else 0) +
         profile.age_similarity_weight +
         profile.origin_country_weight +
         profile.course_weight +
