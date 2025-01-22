@@ -1,5 +1,3 @@
-
-
 # origin_country
 # course
 # occupation
@@ -10,66 +8,118 @@
 
 class FeatureEncoder:
     @staticmethod
+    def get_smoking_code(smoking: str) -> int:
+        smoking_categories = ["NO", "YES", "SMOKE_WHAT"]
+        if smoking not in smoking_categories:
+            return 0
+        return smoking_categories.index(smoking) + 1  # Return index + 1 so 0 is reserved for unknown
+
+    @staticmethod
     def get_origin_country_code(country: str) -> int:
         country_codes = [
-            "UK", "USA", "Canada", "Australia"
+            "AF", "AL", "DZ", "AD", "AO", "AG", "AR", "AM", "AU", "AT", "AZ",
+            "BS", "BH", "BD", "BB", "BY", "BE", "BZ", "BJ", "BT", "BO", "BA", 
+            "BW", "BR", "BN", "BG", "BF", "BI",
+            "KH", "CM", "CA", "CV", "CF", "TD", "CL", "CN", "CO", "KM", "CG", 
+            "CD", "CR", "CI", "HR", "CU", "CY", "CZ",
+            "DK", "DJ", "DM", "DO",
+            "EC", "EG", "SV", "GQ", "ER", "EE", "SZ", "ET",
+            "FJ", "FI", "FR",
+            "GA", "GM", "GE", "DE", "GH", "GR", "GD", "GT", "GN", "GW", "GY",
+            "HT", "HN", "HU",
+            "IS", "IN", "ID", "IR", "IQ", "IE", "IL", "IT",
+            "JM", "JP", "JO",
+            "KZ", "KE", "KI", "KP", "KR", "KW", "KG",
+            "LA", "LV", "LB", "LS", "LR", "LY", "LI", "LT", "LU",
+            "MG", "MW", "MY", "MV", "ML", "MT", "MH", "MR", "MU", "MX", "FM", 
+            "MD", "MC", "MN", "ME", "MA", "MZ", "MM",
+            "NA", "NR", "NP", "NL", "NZ", "NI", "NE", "NG", "NO", "OM",
+            "PK", "PW", "PA", "PG", "PY", "PE", "PH", "PL", "PT", "QA",
+            "RO", "RU", "RW",
+            "KN", "LC", "VC", "WS", "SM", "ST", "SA", "SN", "RS", "SC", "SL", 
+            "SG", "SK", "SI", "SB", "SO", "ZA", "SS", "ES", "LK", "SD", "SR", 
+            "SE", "CH", "SY",
+            "TW", "TJ", "TZ", "TH", "TL", "TG", "TO", "TT", "TN", "TR", "TM", 
+            "TV",
+            "UG", "UA", "AE", "GB", "US", "UY", "UZ",
+            "VU", "VA", "VE", "VN",
+            "YE", "ZM", "ZW"
         ]
         if country not in country_codes:
             return 0
-        return country_codes.index(country)  # Return 0 if country not found
+        return country_codes.index(country) + 1  # Return index + 1 so 0 is reserved for unknown
 
-    def get_course_code(course: str) -> int:
-        course_codes = {"Computer Science", "Engineering", "Physics", "Chemistry", "Biology",
-                        "History", "Literature", "Philosophy", "Art", "Music",
-                        "Business", "Economics", "Finance", "Marketing"
-        }
-        return course_codes.get(course, 0)  # Return 0 if course not found
+    @staticmethod
+    def get_course_code(course_id: str) -> int:
+        course_num = int(course_id)
+        if 1 <= course_num <= 250:
+            return course_num
+        return 0  # Return 0 for out of range values
 
+    @staticmethod
     def get_occupation_code(occupation: str) -> int:
-        occupation_codes = {
-            "Student": 1,
-            "Engineer": 2,
-            "Doctor": 3,
-            "Teacher": 4,
-            "Artist": 5,
-            # Add more occupations as needed
-        }
-        return occupation_codes.get(occupation, 0)  # Return 0 if occupation not found
+        occupation_categories = ["EMPLOYED", "CRUISING", "STUDENT"]
+        if occupation not in occupation_categories:
+            return 0
+        return occupation_categories.index(occupation) + 1  # Return index + 1 so 0 is reserved for unknown
 
+    @staticmethod
     def get_work_industry_code(industry: str) -> int:
-        industry_codes = {
-            "Technology": 1,
-            "Healthcare": 2,
-            "Education": 3,
-            "Finance": 4,
-            "Arts": 5,
-            # Add more industries as needed
-        }
-        return industry_codes.get(industry, 0)  # Return 0 if industry not found
+        industry_categories = [
+            "Agriculture", "Construction", "Creative Arts", "Education", "Finance",
+            "Healthcare", "Hospitality", "IT", "Law", "Logistics", "Manufacturing",
+            "Marketing", "Media", "Military", "Public Service", "Real Estate",
+            "Recruitment", "Retail", "Social Care"
+        ]
+        if industry not in industry_categories:
+            return 0
+        return industry_categories.index(industry) + 1  # Return index + 1 so 0 is reserved for unknown
 
-    def get_smoking_code(smoking: str) -> int:
-        smoking_codes = {
-            "Non-smoker": 1,
-            "Occasional smoker": 2,
-            "Regular smoker": 3,
-        }
-        return smoking_codes.get(smoking, 0)  # Return 0 if smoking status not found
+    @staticmethod
+    def get_activity_hours_code(activity_hours: str) -> int:
+        activity_categories = ["NIGHT_OWL", "EARLY_BIRD"]
+        if activity_hours not in activity_categories:
+            return 0
+        return activity_categories.index(activity_hours) + 1  # Return index + 1 so 0 is reserved for unknown
 
-    # def get_activity_hours_code(activity_hours: str) -> int:
-    #     activity_hours_codes = {
-    #         "Low": 1,
-    #         "Medium": 2,
-    #         "High": 3,
-    #     }
-    #     return activity_hours_codes.get(activity_hours, 0)  # Return 0 if activity level not found
-
+    @staticmethod
     def get_university_id_code(university_id: str) -> int:
-        university_codes = {
-            "UCL": 1,
-            "Oxford": 2,
-            "Cambridge": 3,
-            "Imperial": 4,
-            "LSE": 5,
-            # Add more universities as needed
-        }
-        return university_codes.get(university_id, 0)  # Return 0 if university not found
+        uni_num = int(university_id)
+        if 1 <= uni_num <= 250:
+            return uni_num
+        return 0  # Return 0 for out of range values
+
+    @staticmethod
+    def get_gender_code(gender: str) -> int:
+        gender_categories = ["MALE", "FEMALE"]
+        if gender not in gender_categories:
+            return 0
+        return gender_categories.index(gender) + 1  # Return index + 1 so 0 is reserved for unknown
+
+    @staticmethod
+    def get_sexual_orientation_code(orientation: str) -> int:
+        orientation_categories = ["STRAIGHT", "PREFER_NOT_TO_SAY", "GAY", "BISEXUAL"]
+        if orientation not in orientation_categories:
+            return 0
+        return orientation_categories.index(orientation) + 1  # Return index + 1 so 0 is reserved for unknown
+
+    @staticmethod
+    def get_extrovert_level_code(extrovert_level: str) -> int:
+        level = int(extrovert_level)
+        if 1 <= level <= 5:
+            return level
+        return 0  # Return 0 for out of range values
+
+    @staticmethod
+    def get_cleanliness_level_code(cleanliness_level: str) -> int:
+        level = int(cleanliness_level)
+        if 1 <= level <= 5:
+            return level
+        return 0  # Return 0 for out of range values
+
+    @staticmethod
+    def get_partying_level_code(partying_level: str) -> int:
+        level = int(partying_level)
+        if 1 <= level <= 5:
+            return level
+        return 0  # Return 0 for out of range values

@@ -24,20 +24,39 @@ import xgboost_helper_functions as xgb_func
 
 class XGBoostRecommender:
     def __init__(self):
-        self.model = None
+        self.model = xgb.XGBClassifier(
+            objective='binary:logistic',
+            eval_metric=['logloss', 'auc'],
+            learning_rate=0.1
+        )
 
     def create_feature_vector(self, viewer_profile: Profile, swiped_profile: Profile) -> List[float]:
         """
         Convert both viewer and candidate profiles into a feature vector that captures their relationship
         """
+        # Simple gender encoding function
+        def encode_gender(gender: str) -> float:
+            if not gender:
+                return 0.0
+            gender = gender.lower()
+            if gender == 'male':
+                return 1.0
+            elif gender == 'female':
+                return 2.0
+            else:
+                return 0.0  # for other/unknown
+            
         features = [
-            # Candidate features
+            # Budget and age features
             help_func.CalculateScoreFunctions.calculate_budget_overlap_score(
                 viewer_profile.rent_budget, swiped_profile.rent_budget
             ),
-                help_func.calculate_age(viewer_profile.birth_date),
-                help_func.calculate_age(swiped_profile.birth_date)
-            ,
+            help_func.calculate_age(viewer_profile.birth_date),  # viewer age
+            help_func.calculate_age(swiped_profile.birth_date),  # candidate age
+            abs(help_func.calculate_age(viewer_profile.birth_date) - 
+                help_func.calculate_age(swiped_profile.birth_date)),  # age difference
+
+            # Basic matching features
             help_func.ComparisonFunctions.compare_origin_country(
                 viewer_profile.origin_country, swiped_profile.origin_country
             ),
@@ -53,13 +72,31 @@ class XGBoostRecommender:
             help_func.ComparisonFunctions.compare_smoking(
                 viewer_profile.smoking, swiped_profile.smoking
             ),
-            #xgb_func.ComparisonFunctions.compare_activity_hours(
-                #viewer_profile.activity_hours, swiped_profile.activity_hours
-            #),
+            help_func.ComparisonFunctions.compare_activity_hours(
+                viewer_profile.activity_hours, swiped_profile.activity_hours
+            ),
             help_func.ComparisonFunctions.compare_university(
                 viewer_profile.university_id, swiped_profile.university_id
-            )
+            ),
+
+            # Personality and lifestyle features
+            abs(viewer_profile.extrovert_level - swiped_profile.extrovert_level),  # extrovert difference
+            abs(viewer_profile.cleanliness_level - swiped_profile.cleanliness_level),  # cleanliness difference
+            abs(viewer_profile.partying_level - swiped_profile.partying_level),  # partying difference
+
+            # Gender and orientation features
+            encode_gender(viewer_profile.gender),  # viewer gender
+            encode_gender(swiped_profile.gender),  # candidate gender
+            1.0 if viewer_profile.gender == swiped_profile.gender else 0.0,  # gender match
+            1.0 if viewer_profile.sexual_orientation == swiped_profile.sexual_orientation else 0.0,  # simple orientation match
+
+            # Additional compatibility features
+            1.0 if viewer_profile.pets == swiped_profile.pets else 0.0,  # simple pets match
+            len(set(viewer_profile.languages) & set(swiped_profile.languages)) / max(
+                len(viewer_profile.languages), len(swiped_profile.languages), 1
+            )  # languages overlap
         ]
+        
         print(f"Feature vector for viewer {viewer_profile.user_id} and swiped {swiped_profile.user_id}: {features}")
         return features
 
@@ -81,12 +118,6 @@ class XGBoostRecommender:
             np.array(y),
             test_size=0.2,
             random_state=42
-        )
-
-        self.model = xgb.XGBClassifier(
-            objective='binary:logistic',
-            eval_metric=['logloss', 'auc'],
-            learning_rate=0.1
         )
 
         self.model.fit(x_train, y_train)
