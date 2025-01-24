@@ -203,12 +203,6 @@ def evaluate_model(model, X_test, y_test):
     auc_roc = roc_auc_score(y_test, y_pred_proba)
     
     # Print metrics
-    print("\nModel Performance Metrics:")
-    print("-" * 50)
-    print(f"Accuracy:  {accuracy:.3f}")
-    print(f"Precision: {precision:.3f}")
-    print(f"Recall:    {recall:.3f}")
-    print(f"AUC-ROC:   {auc_roc:.3f}")
     
     # Create confusion matrix
     cm = confusion_matrix(y_test, y_pred)

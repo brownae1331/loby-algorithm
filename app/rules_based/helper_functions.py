@@ -35,6 +35,14 @@ AGE_DIVISOR = 9
 # Profile generation
 NUM_PROFILES = 500
 
+# Groups of compatible countries 
+SPECIAL_COUNTRY_GROUPS = {
+    'South_Asian': ['India', 'Pakistan', 'Bangladesh', 'Afghanistan', 'Nepal', 'Bhutan', 'Sri Lanka', 'Maldives'],
+    'Arab': ['United Arab Emirates', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman', 'Egypt', 'Algeria', 'Morocco', 'Tunisia', 'Libya', 'Jordan', 'Lebanon', 'Iraq', 'Syria', 'Sudan', 'Mauritania', 'Somalia', 'Djibouti', 'Comoros', 'Palestine', 'Yemen'],
+    'East_Asian': ['China', 'Japan', 'South Korea', 'North Korea', 'Taiwan', 'Hong Kong', 'Mongolia', 'Macau'],
+    'Anglosphere': ['United States', 'United Kingdom', 'Canada', 'Australia', 'New Zealand', 'Ireland'],
+    'Eastern_Europe': ['Poland', 'Czech Republic', 'Slovakia', 'Hungary', 'Romania', 'Bulgaria', 'Ukraine', 'Belarus', 'Moldova', 'Russia', 'Latvia', 'Lithuania', 'Estonia', 'Serbia', 'Bosnia and Herzegovina', 'Montenegro', 'North Macedonia', 'Albania', 'Kosovo', 'Kazakhstan', 'Kyrgyzstan', 'Uzbekistan', 'Turkmenistan', 'Tajikistan']
+}
 
 def calculate_k_factor(time_difference_days, DECAY_RATE) -> float:
     """
@@ -118,9 +126,25 @@ class CalculateScoreFunctions:
 
 class ComparisonFunctions:
     @staticmethod
-    def compare_origin_country(attr1, attr2) -> float:
-        """Compare origin country between profiles."""
-        return float(attr1 == attr2)
+    def compare_origin_country(attr1: str, attr2: str) -> Tuple[float, bool]:
+        """
+        Compare origin countries and indicate if they're in a special group.
+        Returns:
+        - Tuple[float, bool]: (similarity_score, is_special_group)
+        """
+        if attr1 == attr2:
+            # Check if the country is in any special group
+            for group in SPECIAL_COUNTRY_GROUPS.values():
+                if attr1 in group:
+                    return (1.0, True)
+            return (1.0, False)
+            
+        # Check if countries are in the same special group
+        for group in SPECIAL_COUNTRY_GROUPS.values():
+            if attr1 in group and attr2 in group:
+                return (0.8, True)
+                
+        return (0.0, False)
 
     @staticmethod
     def compare_course(attr1, attr2) -> float:
@@ -488,7 +512,13 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
         budget_overlap_score = 0.0
     
     age_similarity_score: float = CalculateScoreFunctions.calculate_age_similarity_score(calculate_age(starting_profile.birth_date), calculate_age(profile.birth_date)) * profile.age_similarity_weight
-    origin_country_score: float = ComparisonFunctions.compare_origin_country(starting_profile.origin_country, profile.origin_country) * profile.origin_country_weight
+   # orgin country score is calculated by choosing which weight to apply 
+    origin_country_score, is_special_group = ComparisonFunctions.compare_origin_country(
+        starting_profile.origin_country, 
+        profile.origin_country
+    )
+    origin_country_weight = profile.special_origin_country_weight if is_special_group else profile.base_origin_country_weight
+    origin_country_score *= origin_country_weight
     
     course_score: float = ComparisonFunctions.compare_course(starting_profile.course, profile.course)
     if course_score != -1:

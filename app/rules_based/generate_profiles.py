@@ -22,7 +22,8 @@ class Profile:
                  occupation_weight = 0.273, work_industry_weight = 0.094, smoking_weight = 0.03, activity_hours_weight = 0.017, university_weight = 0.2, gender_similarity_weight = 0.4, likes = []):
         self.budget_weight = budget_weight
         self.age_similarity_weight = age_similarity_weight
-        self.origin_country_weight = origin_country_weight
+        self.origin_country_weight = origin_country_weight  # Base weight for origin country matching
+        self.special_origin_country_weight = 0.2
         self.course_weight = course_weight
         self.occupation_weight = occupation_weight
         self.work_industry_weight = work_industry_weight
@@ -59,8 +60,8 @@ class Profile:
         self.available_at = available_at
         self.roommate_count_preference = roommate_count_preference
         self.interests = interests
-
-        #implement the weights in the class
-
+        
+        # Define origin country weights
+        self.origin_country_weight = origin_country_weight  # Base weight for origin country matching
         self.likes = likes
     
