@@ -30,7 +30,7 @@ def generate_swipe_history(profiles):
         for j, swiped_profile in enumerate(profiles):
             if i != j:
                 score = calculate_overall_score(viewer_profile, swiped_profile)
-                liked = score >= 0.5  # Assuming a threshold of 0.8 for "like"
+                liked = score >= 0.5   # Assuming a threshold of 0.8 for "like"
                 swipe_history.append((viewer_profile, swiped_profile, liked))
             if (j + 1) % 100 == 0:
                 print(f"Processed {i + 1}/{total_profiles} viewer profiles")
