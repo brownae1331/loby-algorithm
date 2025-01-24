@@ -20,7 +20,7 @@ from sklearn.model_selection import train_test_split
 from generate_profiles2 import Profile
 from app.rules_based import helper_functions as help_func
 import xgboost_helper_functions as xgb_func
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 class XGBoostRecommender:
     def __init__(self):
@@ -97,7 +97,7 @@ class XGBoostRecommender:
             )  # languages overlap
         ]
         
-        print(f"Feature vector for viewer {viewer_profile.user_id} and swiped {swiped_profile.user_id}: {features}")
+        #print(f"Feature vector for viewer {viewer_profile.user_id} and swiped {swiped_profile.user_id}: {features}")
         return features
 
     def train(self, global_swipe_history: List[Tuple[Profile, Profile, bool]]):
@@ -121,6 +121,22 @@ class XGBoostRecommender:
         )
 
         self.model.fit(x_train, y_train)
+
+        # Predict on the test set
+        y_pred = self.model.predict(x_test)
+
+        # Calculate performance metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        precision = precision_score(y_test, y_pred)
+        recall = recall_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+
+        # Print performance metrics
+        print(f"Accuracy: {accuracy:.4f}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall: {recall:.4f}")
+        print(f"F1 Score: {f1:.4f}")
+
 
     def predict_probability(self, viewer_profile: Profile, swiped_profile: Profile) -> float:
         """

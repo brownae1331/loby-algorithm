@@ -1,6 +1,8 @@
 import sys
 import os
 
+import pickle
+
 # Get the absolute path to the parent directory (Loby_Algo)
 current_dir = os.path.dirname(os.path.abspath(__file__))  # Gets XGBoost directory
 parent_dir = os.path.dirname(current_dir)                 # Gets Loby_Algo directory
@@ -83,7 +85,8 @@ def test_recommender():
 
     # 2. Create swipe history (simulating user preferences).
     #    The tuple is (viewer_profile, candidate_profile, liked_bool).
-    swipe_history = generate_swipe_history(test_profiles)
+    with open('swipe_history.pkl', 'rb') as file:
+        swipe_history = pickle.load(file)
 
     # 3. Initialize and train recommender
     recommender = XGBoostRecommender()
@@ -141,8 +144,8 @@ def test_recommender():
     for feature, importance in zip(feature_names, feature_importances.values()):
         print(f"{feature}: {importance}")
 
-    recommender.save_model(r"C:\Users\jeetu\Desktop\loby-algorithm\XGboost")
-
+    with open('recommender.pkl', 'wb') as file:
+        pickle.dump(recommender, file)
 
 if __name__ == "__main__":
     test_recommender()
