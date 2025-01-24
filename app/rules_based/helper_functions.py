@@ -136,15 +136,15 @@ class ComparisonFunctions:
             # Check if the country is in any special group
             for group in SPECIAL_COUNTRY_GROUPS.values():
                 if attr1 in group:
-                    return (1.0, True)
-            return (1.0, False)
+                    return 1.0, True
+            return 1.0, False
             
         # Check if countries are in the same special group
         for group in SPECIAL_COUNTRY_GROUPS.values():
             if attr1 in group and attr2 in group:
-                return (0.8, True)
+                return 0.8, True
                 
-        return (0.0, False)
+        return 0.0, False
 
     @staticmethod
     def compare_course(attr1, attr2) -> float:
@@ -517,7 +517,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
         starting_profile.origin_country, 
         profile.origin_country
     )
-    origin_country_weight = profile.special_origin_country_weight if is_special_group else profile.base_origin_country_weight
+    origin_country_weight = profile.special_origin_country_weight if is_special_group else profile.origin_country_weight
     origin_country_score *= origin_country_weight
     
     course_score: float = ComparisonFunctions.compare_course(starting_profile.course, profile.course)

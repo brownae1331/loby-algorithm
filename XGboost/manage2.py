@@ -17,7 +17,7 @@ import numpy as np
 from typing import List, Tuple
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from generate_profiles2 import Profile
+from app.rules_based.generate_profiles import Profile
 from app.rules_based import helper_functions as help_func
 import xgboost_helper_functions as xgb_func
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -45,7 +45,12 @@ class XGBoostRecommender:
                 return 2.0
             else:
                 return 0.0  # for other/unknown
-            
+
+        origin_country_score, is_special_group = help_func.ComparisonFunctions.compare_origin_country(
+            viewer_profile.origin_country, swiped_profile.origin_country
+        )
+        origin_country_weight = viewer_profile.special_origin_country_weight if is_special_group else viewer_profile.special_origin_country_weight
+        origin_country_score *= origin_country_weight
         features = [
             # Budget and age features
             help_func.CalculateScoreFunctions.calculate_budget_overlap_score(
@@ -57,9 +62,7 @@ class XGBoostRecommender:
                 help_func.calculate_age(swiped_profile.birth_date)),  # age difference
 
             # Basic matching features
-            help_func.ComparisonFunctions.compare_origin_country(
-                viewer_profile.origin_country, swiped_profile.origin_country
-            ),
+            origin_country_score,
             help_func.ComparisonFunctions.compare_course(
                 viewer_profile.course, swiped_profile.course
             ),
@@ -96,7 +99,6 @@ class XGBoostRecommender:
                 len(viewer_profile.languages), len(swiped_profile.languages), 1
             )  # languages overlap
         ]
-        
         #print(f"Feature vector for viewer {viewer_profile.user_id} and swiped {swiped_profile.user_id}: {features}")
         return features
 
