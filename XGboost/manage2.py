@@ -46,11 +46,9 @@ class XGBoostRecommender:
             else:
                 return 0.0  # for other/unknown
 
-        origin_country_score, is_special_group = help_func.ComparisonFunctions.compare_origin_country(
-            viewer_profile.origin_country, swiped_profile.origin_country
-        )
-        origin_country_weight = viewer_profile.special_origin_country_weight if is_special_group else viewer_profile.special_origin_country_weight
-        origin_country_score *= origin_country_weight
+        # Simplified origin country comparison (binary: same/different)
+        origin_country_score = 1.0 if viewer_profile.origin_country == swiped_profile.origin_country else 0.0
+
         features = [
             # Budget and age features
             help_func.CalculateScoreFunctions.calculate_budget_overlap_score(
@@ -62,7 +60,7 @@ class XGBoostRecommender:
                 help_func.calculate_age(swiped_profile.birth_date)),  # age difference
 
             # Basic matching features
-            origin_country_score,
+            origin_country_score,  
             help_func.ComparisonFunctions.compare_course(
                 viewer_profile.course, swiped_profile.course
             ),
