@@ -5,7 +5,7 @@ import pickle
 
 # Get the absolute path to the parent directory (Loby_Algo)
 current_dir = os.path.dirname(os.path.abspath(__file__))  # Gets XGBoost directory
-parent_dir = os.path.dirname(current_dir)                 # Gets Loby_Algo directory
+parent_dir = os.path.dirname(current_dir)  # Gets Loby_Algo directory
 
 # Add the parent directory to Python's path
 if parent_dir not in sys.path:
@@ -18,7 +18,10 @@ import pandas as pd
 from datetime import datetime
 import xgboost as xgb
 
-from app.rules_based.helper_functions import initialize_profile_list, calculate_overall_score
+from app.rules_based.helper_functions import (
+    initialize_profile_list,
+    calculate_overall_score,
+)
 from generate_profiles2 import Profile
 import matplotlib.pyplot as plt
 
@@ -30,15 +33,16 @@ def generate_swipe_history(profiles):
         for j, swiped_profile in enumerate(profiles):
             if i != j:
                 score = calculate_overall_score(viewer_profile, swiped_profile)
-                liked = score >= 0.5   # Assuming a threshold of 0.8 for "like"
+                liked = score >= 0.5  # Assuming a threshold of 0.8 for "like"
                 swipe_history.append((viewer_profile, swiped_profile, liked))
             if (j + 1) % 100 == 0:
                 print(f"Processed {i + 1}/{total_profiles} viewer profiles")
     return swipe_history
 
 
-
-def create_test_profile(user_id: int, budget: tuple[int, int], age: int, smoking: str, activity: str) -> Profile:
+def create_test_profile(
+    user_id: int, budget: tuple[int, int], age: int, smoking: str, activity: str
+) -> Profile:
     """
     Helper function to create test profiles quickly.
     Uses the passed arguments to set various fields.
@@ -60,8 +64,8 @@ def create_test_profile(user_id: int, budget: tuple[int, int], age: int, smoking
         occupation="Student",
         sexual_orientation="Straight",
         pets="Dog",
-        activity_hours= 'EARLY_BIRD',
-        smoking='YES',
+        activity_hours="EARLY_BIRD",
+        smoking="YES",
         extrovert_level=5,
         cleanliness_level=5,
         partying_level=5,
@@ -75,7 +79,7 @@ def create_test_profile(user_id: int, budget: tuple[int, int], age: int, smoking
         interests=["Reading", "Traveling", "Cooking"],
         work_industry=None,
         university_id="UCL",
-        course="Computer Science"
+        course="Computer Science",
     )
 
 
@@ -85,7 +89,7 @@ def test_recommender():
 
     # 2. Create swipe history (simulating user preferences).
     #    The tuple is (viewer_profile, candidate_profile, liked_bool).
-    with open('swipe_history.pkl', 'rb') as file:
+    with open("swipe_history.pkl", "rb") as file:
         swipe_history = pickle.load(file)
 
     # 3. Initialize and train recommender
@@ -96,9 +100,9 @@ def test_recommender():
     swiped_profiles = test_profiles  # e.g. from DB or a small dummy set
 
     # 5. Get top-k recommendations (now returns list of (Profile, probability) tuples)
-    recommendations = recommender.recommend_profiles(viewer_profile=test_profiles[0],
-                                                     swiped_profiles=swiped_profiles,
-                                                     top_k=50)
+    recommendations = recommender.recommend_profiles(
+        viewer_profile=test_profiles[0], swiped_profiles=swiped_profiles, top_k=50
+    )
 
     profile1 = test_profiles[0]
 
@@ -123,9 +127,8 @@ def test_recommender():
         print(f"  University: {profile.university_id}")
         print(f"  Match Probability: {probability * 100:.1f}%\n")
 
-
     booster = recommender.get_booster()
-    feature_importances = booster.get_score(importance_type='weight')
+    feature_importances = booster.get_score(importance_type="weight")
 
     feature_names = [
         "budget",
@@ -136,7 +139,7 @@ def test_recommender():
         "work industry",
         "smoking",
         "activity hours",
-        "university"
+        "university",
     ]
 
     # Print feature importances
@@ -144,8 +147,9 @@ def test_recommender():
     for feature, importance in zip(feature_names, feature_importances.values()):
         print(f"{feature}: {importance}")
 
-    with open('recommender.pkl', 'wb') as file:
+    with open("recommender.pkl", "wb") as file:
         pickle.dump(recommender, file)
+
 
 if __name__ == "__main__":
     test_recommender()

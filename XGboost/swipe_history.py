@@ -1,5 +1,9 @@
 import pickle
-from app.rules_based.helper_functions import initialize_profile_list, calculate_overall_score
+from app.rules_based.helper_functions import (
+    initialize_profile_list,
+    calculate_overall_score,
+)
+
 
 def generate_swipe_history(profiles):
     swipe_history = []
@@ -18,5 +22,5 @@ def generate_swipe_history(profiles):
 test_profiles = initialize_profile_list()
 swipe_history = generate_swipe_history(test_profiles)
 
-with open('swipe_history.pkl', 'wb') as file:
+with open("swipe_history.pkl", "wb") as file:
     pickle.dump(swipe_history, file)

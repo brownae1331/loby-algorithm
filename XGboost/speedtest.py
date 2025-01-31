@@ -13,6 +13,6 @@ if __name__ == "__main__":
 
     profiler.disable()
     print("Profiling complete. Generating stats...")
-    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats = pstats.Stats(profiler).sort_stats("cumtime")
     stats.print_stats(10)  # Print top 10 slowest functions
     print("Stats printed.")

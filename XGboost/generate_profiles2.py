@@ -1,15 +1,40 @@
 from datetime import date, datetime
 from typing import Optional, List, Tuple
 
+
 class Profile:
-    def __init__(self, user_id: int, first_name: str, last_name: str, birth_date: date, is_verified: bool,
-                 gender: str, description: Optional[str], languages: Optional[List[str]], origin_country: str,
-                 occupation: str, work_industry: Optional[str], university_id: Optional[str], course: Optional[str],
-                 sexual_orientation: Optional[str], pets: Optional[str], activity_hours: str, smoking: Optional[str],
-                 extrovert_level: int, cleanliness_level: int, partying_level: int, sex_living_preference: str,
-                 rent_location_preference: Optional[str], age_preference: Tuple[int, int], rent_budget: Optional[Tuple[int, int]],
-                 last_filter_processed_at: Optional[datetime], available_at: Optional[str], roommate_count_preference: Optional[int],
-                 interests: Optional[List[str]], likes = []):
+    def __init__(
+        self,
+        user_id: int,
+        first_name: str,
+        last_name: str,
+        birth_date: date,
+        is_verified: bool,
+        gender: str,
+        description: Optional[str],
+        languages: Optional[List[str]],
+        origin_country: str,
+        occupation: str,
+        work_industry: Optional[str],
+        university_id: Optional[str],
+        course: Optional[str],
+        sexual_orientation: Optional[str],
+        pets: Optional[str],
+        activity_hours: str,
+        smoking: Optional[str],
+        extrovert_level: int,
+        cleanliness_level: int,
+        partying_level: int,
+        sex_living_preference: str,
+        rent_location_preference: Optional[str],
+        age_preference: Tuple[int, int],
+        rent_budget: Optional[Tuple[int, int]],
+        last_filter_processed_at: Optional[datetime],
+        available_at: Optional[str],
+        roommate_count_preference: Optional[int],
+        interests: Optional[List[str]],
+        likes=[],
+    ):
         self.user_id = user_id
         self.first_name = first_name
         self.last_name = last_name
@@ -40,4 +65,3 @@ class Profile:
         self.interests = interests
 
         self.likes = likes
-    
