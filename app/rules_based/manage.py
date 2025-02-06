@@ -10,6 +10,7 @@ if __name__ == "__main__":
 
 from app.rules_based.helper_functions import (
     PrintFunctions,
+    Constants,
     initialize_profile_list_from_csv,
     modify_weights_with_weighted_average,
     assign_profiles_to_profile_list,
@@ -18,29 +19,84 @@ from app.rules_based.helper_functions import (
 )
 
 
+def get_user_filters():
+    """Get filter preferences from user input"""
+    filters = {}
+
+    print("\nWould you like to add any filters? (yes/no)")
+    if input().lower() == "yes":
+        print("\nAvailable filters:")
+        print("1. Country")
+        print("2. University")
+        print("3. Course")
+        print("4. Work Industry")
+        print("5. Active Today")
+
+        while True:
+            print("\nEnter filter number (or 0 to finish):")
+            choice = input()
+
+            if choice == "0":
+                break
+
+            if choice == "1":
+                country = input("Enter country code (e.g., GB, US): ").upper()
+                filters["country"] = country
+            elif choice == "2":
+                university = input("Enter university (e.g., KCL, UCL): ").upper()
+                filters["university"] = university
+            elif choice == "3":
+                course = input("Enter course: ")
+                filters["course"] = course
+            elif choice == "4":
+                industry = input("Enter work industry: ")
+                filters["work_industry"] = industry
+            elif choice == "5":
+                filters["active_today"] = True
+
+    return filters
+
+
 def run_test():
     # Initialize profiles from CSV
     csv_path = os.path.join(os.path.dirname(__file__), "big_boy_stuff.csv")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Looking for CSV at: {os.path.abspath(csv_path)}")
     all_profiles = initialize_profile_list_from_csv(csv_path)
 
     if not all_profiles:
         print("Failed to load profiles from CSV")
         return
 
-    # Move starting_profile definition inside the function
-    starting_profile = all_profiles[
-        0
-    ]  # Or however you want to select the starting profile
+    # Show available profiles before asking for input
+    print("\nAvailable profiles to choose from:")
+    for profile in all_profiles:
+        print(
+            f"ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, university: {profile.university_id}, course: {profile.course}, work industry: {profile.work_industry}"
+        )
 
-    # Get eligible profiles first
-    profile_list = assign_profiles_to_profile_list(starting_profile, all_profiles)
+    # Get starting profile by user ID
+    profile_user_id = int(input("\nEnter the User ID for the starting profile: "))
+    try:
+        starting_profile = [p for p in all_profiles if p.user_id == profile_user_id][0]
+    except IndexError:
+        print(f"No profile found with ID: {profile_user_id}")
+        return
+
+    # Get user filters
+    filters = get_user_filters()
+
+    # Pass filters to assign_profiles_to_profile_list
+    profile_list = assign_profiles_to_profile_list(
+        starting_profile, all_profiles, filters=filters
+    )
+
+    print(f"Number of eligible profiles: {len(profile_list) if profile_list else 0}")
 
     # Show available profiles to choose from
     print("\nAvailable profiles to choose who liked the test user:")
     for profile in profile_list:
-        print(f"ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}")
+        print(
+            f"ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, university: {profile.university_id}, course: {profile.course}, work industry: {profile.work_industry}"
+        )
 
     # Get number of profiles that liked the test user
     num_liked_me = int(
@@ -67,41 +123,24 @@ def run_test():
         except ValueError:
             print("Please enter a valid number.")
 
-    # Store original weights
-    original_weights = {
-        "budget_weight": starting_profile.budget_weight,
-        "age_similarity_weight": starting_profile.age_similarity_weight,
-        "origin_country_weight": starting_profile.origin_country_weight,
-        "course_weight": starting_profile.course_weight,
-        "occupation_weight": starting_profile.occupation_weight,
-        "work_industry_weight": starting_profile.work_industry_weight,
-        "smoking_weight": starting_profile.smoking_weight,
-        "activity_hours_weight": starting_profile.activity_hours_weight,
-        "university_weight": starting_profile.university_weight,
-        "gender_similarity_weight": starting_profile.gender_similarity_weight,
-    }
-
     # Print original weights
-    print("\nOriginal Weights:")
     PrintFunctions.print_weights(starting_profile, "Initial")
 
-    # Modify generate_likes to not print weights
-    for _ in range(5):
+    profiles_liked = 0
+    while profiles_liked < 5:
         user_id = int(input("Enter the User ID for Alex to like: "))
-        liked_profile = next((p for p in profile_list if p.user_id == user_id), None)
+        liked_profile = next((p for p in profile_list if p.user_id == user_id))
         if liked_profile:
-            days = int(input("Days: "))
-            starting_profile.likes.append([liked_profile, days])
+            profiles_liked += 1
+            starting_profile.likes.append(liked_profile)  # add days later
 
-    # Update weights after all likes
-    starting_profile = modify_weights_with_weighted_average(starting_profile, 0.1)
-
-    # Print updated weights and changes
-    print("\nWeight Changes:")
-    for attr, original in original_weights.items():
-        new_value = getattr(starting_profile, attr)
-        change = new_value - original
-        print(f"{attr}: {original:.2f} -> {new_value:.2f} (Change: {change:+.2f})")
+            if profiles_liked == 5:
+                starting_profile = modify_weights_with_weighted_average(
+                    starting_profile, Constants.LEARNING_RATE
+                )
+                PrintFunctions.print_weights(
+                    starting_profile, f"After {len(starting_profile.likes)} Likes"
+                )
 
     # Calculate scores for all profiles
     scored_profiles = []
@@ -111,7 +150,7 @@ def run_test():
     for profile in profile_list:
         score = calculate_overall_score(starting_profile, profile)
         liked_by_me = any(
-            liked.user_id == profile.user_id for liked, _ in starting_profile.likes
+            liked.user_id == profile.user_id for liked in starting_profile.likes
         )
         liked_me = profile.user_id in users_who_liked_me
 
@@ -127,28 +166,35 @@ def run_test():
     # Sort all lists by score
     liked_by_profiles.sort(key=lambda x: x[1], reverse=True)
     scored_profiles.sort(key=lambda x: x[1], reverse=True)
+    high_scoring_profiles.sort(key=lambda x: x[1], reverse=True)
 
-    # Create blocks of 10 with randomization
+    # Create blocks with dynamic sizing
     final_profile_list = []
-    block_size = 10
+    base_block_size = Constants.BLOCK_SIZE  # 10
 
-    for i in range(0, len(scored_profiles), block_size):
-        block = scored_profiles[i : i + block_size]
+    for i in range(0, len(scored_profiles), base_block_size):
+        # Calculate number of special profiles to add to this block (max 3 liked_by + 1 high_scoring)
+        special_profiles_count = min(3, len(liked_by_profiles)) + min(
+            1, len(high_scoring_profiles)
+        )
+
+        # Adjust block size based on number of special profiles to be added
+        adjusted_block_size = base_block_size - special_profiles_count
+
+        # Get initial block of adjusted size and shuffle
+        block = scored_profiles[i : i + adjusted_block_size]
         random.shuffle(block)
 
-        # Take first 5 positions of the block
-        first_five = block[:5]
-        remaining_block = block[5:]
+        # Take first 5 positions of the block (or less if adjusted size is smaller)
+        first_five = block[: min(5, len(block))]
+        remaining_block = block[min(5, len(block)) :]
 
-        # Add up to 3 liked_by profiles in the first 5 positions
-        liked_positions = random.sample(range(5), min(3, len(liked_by_profiles)))
-        for pos in sorted(liked_positions, reverse=True):
+        # Add up to 3 liked_by profiles
+        for _ in range(min(3, len(liked_by_profiles))):
             if liked_by_profiles:
                 liked_profile = liked_by_profiles.pop(0)
-                first_five.insert(pos, liked_profile)
-
-        # Ensure first_five only has 5 elements
-        first_five = first_five[:5]
+                insert_position = random.randint(0, len(first_five) + 1)
+                first_five.insert(insert_position, liked_profile)
 
         # Reconstruct the block
         block = first_five + remaining_block
@@ -156,12 +202,12 @@ def run_test():
         # Add high scoring profile if available
         if high_scoring_profiles:
             high_score_profile = high_scoring_profiles.pop(0)
-            insert_position = random.randint(0, len(block))
+            insert_position = random.randint(0, len(block) + 1)
             block.insert(insert_position, high_score_profile)
 
         final_profile_list.extend(block)
 
-    # Add any remaining liked_by or high scoring profiles
+    # Add any remaining liked_by or high scoring profiles to the end of the list (TODO: not good solution)
     if liked_by_profiles:
         final_profile_list.extend(liked_by_profiles)
     if high_scoring_profiles:

@@ -39,8 +39,8 @@ class Profile:
         rent_budget: Optional[Tuple[int, int]],
         last_filter_processed_at: Optional[datetime],
         available_at: Optional[str],
-        roommate_count_preference: Optional[int],
         interests: Optional[List[str]],
+        profile_last_activity: Optional[datetime],
         age_similarity_weight=0.6,
         gender_similarity_weight=0.4,
         occupation_weight=0.273,
@@ -80,10 +80,9 @@ class Profile:
         self.rent_budget = rent_budget
         self.last_filter_processed_at = last_filter_processed_at
         self.available_at = available_at
-        self.roommate_count_preference = roommate_count_preference
         self.interests = interests
-
-        # Weights for matching algorithm
+        self.profile_last_activity = profile_last_activity
+        # Weights
         self.age_similarity_weight = age_similarity_weight
         self.gender_similarity_weight = gender_similarity_weight
         self.occupation_weight = occupation_weight
