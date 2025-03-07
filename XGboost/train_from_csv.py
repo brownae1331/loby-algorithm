@@ -215,17 +215,18 @@ def main():
     profile_list = list(test_profiles.values())
 
     # 5. Generate recommendations for the first profile
-    print(f"\nGenerating recommendations for user_id={profile_list[0].user_id}")
-    user_id = 202  # Replace with the user ID you want
+    user_id = 202  # The user ID you want
     viewer_profile = next((p for p in profile_list if p.user_id == user_id), None)
+
     if viewer_profile:
+        print(f"\nGenerating recommendations for user_id={user_id}")
         recommendations = recommender.recommend_profiles(
             viewer_profile=viewer_profile,
-            swiped_profiles=profile_list, 
+            swiped_profiles=profile_list,
             top_k=10
         )
     else:
-        print(f"User ID {user_id} not found")
+        print(f"User ID {user_id} not found in profiles")
 
     # 6. Print results
     print("\nTop 5 recommendations:")

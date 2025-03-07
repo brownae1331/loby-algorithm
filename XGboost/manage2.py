@@ -17,7 +17,7 @@ import numpy as np
 from typing import List, Tuple, Optional
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from app.rules_based.generate_profiles import Profile
+from XGboost.generate_profiles2 import Profile
 from app.rules_based import helper_functions as help_func
 from xgboost_helper_functions import FeatureEncoder
 from sklearn.metrics import (
@@ -28,6 +28,7 @@ from sklearn.metrics import (
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
 
 class XGBoostRecommender:
@@ -43,37 +44,15 @@ class XGBoostRecommender:
     def get_feature_names(self) -> List[str]:
         return [
             "budget_overlap",
-            "viewer_age",
-            "candidate_age",
             "age_difference",
             "origin_country_match",
-            "viewer_country_code",
-            "candidate_country_code",
             "course_match",
-            "viewer_course_code",
-            "candidate_course_code",
             "university_match",
-            "viewer_university_code",
-            "candidate_university_code",
             "occupation_match",
-            "viewer_occupation_code",
-            "candidate_occupation_code",
             "industry_match",
-            "viewer_industry_code",
-            "candidate_industry_code",
             "smoking_match",
-            "viewer_smoking_code",
-            "candidate_smoking_code",
             "activity_hours_match",
-            "viewer_activity_code",
-            "candidate_activity_code",
             "gender_match",
-            "viewer_gender_code",
-            "candidate_gender_code",
-            "language_overlap",
-            "viewer_language_count",
-            "candidate_language_count",
-            "has_english_match",
         ]
 
     def normalize_encoded(self, value: Optional[int], max_val: int) -> float:
@@ -93,104 +72,36 @@ class XGBoostRecommender:
             help_func.CalculateScoreFunctions.calculate_budget_overlap_score(
                 viewer_profile.rent_budget_range, swiped_profile.rent_budget_range
             ),
-            # Age features
-            help_func.calculate_age(viewer_profile.birth_date),
-            help_func.calculate_age(swiped_profile.birth_date),
+            # Age difference
             abs(
                 help_func.calculate_age(viewer_profile.birth_date)
                 - help_func.calculate_age(swiped_profile.birth_date)
             ),
-            # Origin Country features
+            # Origin Country match
             1.0
             if viewer_profile.origin_country == swiped_profile.origin_country
             else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_origin_country_code(viewer_profile.origin_country), 196
-            ),
-            self.normalize_encoded(
-                self.encoder.get_origin_country_code(swiped_profile.origin_country), 196
-            ),
-            # Course features
+            # Course match
             1.0 if viewer_profile.course_id == swiped_profile.course_id else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_course_code(viewer_profile.course_id), 100
-            ),
-            self.normalize_encoded(
-                self.encoder.get_course_code(swiped_profile.course_id), 100
-            ),
-            # University features
+            # University match
             1.0
             if viewer_profile.university_id == swiped_profile.university_id
             else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_university_id_code(viewer_profile.university_id), 250
-            ),
-            self.normalize_encoded(
-                self.encoder.get_university_id_code(swiped_profile.university_id), 250
-            ),
-            # Occupation features
+            # Occupation match
             1.0 if viewer_profile.occupation == swiped_profile.occupation else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_occupation_code(viewer_profile.occupation), 3
-            ),
-            self.normalize_encoded(
-                self.encoder.get_occupation_code(swiped_profile.occupation), 3
-            ),
-            # Work industry features
+            # Industry match
             1.0
             if viewer_profile.work_industry == swiped_profile.work_industry
             else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_work_industry_code(viewer_profile.work_industry), 19
-            ),
-            self.normalize_encoded(
-                self.encoder.get_work_industry_code(swiped_profile.work_industry), 19
-            ),
-            # Smoking features
+            # Smoking match
             1.0 if viewer_profile.smoking == swiped_profile.smoking else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_smoking_code(viewer_profile.smoking), 3
-            ),
-            self.normalize_encoded(
-                self.encoder.get_smoking_code(swiped_profile.smoking), 3
-            ),
-            # Activity hours features
+            # Activity hours match
             1.0
             if viewer_profile.activity_hours == swiped_profile.activity_hours
             else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_activity_hours_code(viewer_profile.activity_hours), 2
-            ),
-            self.normalize_encoded(
-                self.encoder.get_activity_hours_code(swiped_profile.activity_hours), 2
-            ),
-            # Gender features
+            # Gender match
             1.0 if viewer_profile.gender == swiped_profile.gender else 0.0,
-            self.normalize_encoded(
-                self.encoder.get_gender_code(viewer_profile.gender), 2
-            ),
-            self.normalize_encoded(
-                self.encoder.get_gender_code(swiped_profile.gender), 2
-            ),
         ]
-
-        # Handle language features separately
-        viewer_languages = set(viewer_profile.languages or [])
-        candidate_languages = set(swiped_profile.languages or [])
-
-        # Add language features to the list
-        features.extend(
-            [
-                # Original language overlap feature
-                len(viewer_languages & candidate_languages)
-                / max(len(viewer_languages), len(candidate_languages), 1),
-                # Number of languages each person speaks (normalized to 0-1 range assuming max 5 languages)
-                len(viewer_languages) / 5,
-                len(candidate_languages) / 5,
-                # Specific check for English as a common language
-                1.0 if "English" in (viewer_languages & candidate_languages) else 0.0,
-            ]
-        )
 
         return features
 
@@ -243,29 +154,128 @@ class XGBoostRecommender:
         return self.model.predict_proba(features)[0, 1]
 
     def recommend_profiles(
-        self, viewer_profile: Profile, swiped_profiles: List[Profile], top_k: int = 50
+        self, viewer_profile: Profile, swiped_profiles: List[Profile], top_k: int = 5
     ) -> List[Tuple[Profile, float]]:
         """
-        Recommend profiles for a given viewer.
+        Recommend profiles for a given viewer profile using hard filters first,
+        then XGBoost model for ranking.
+        
         Args:
-            viewer_profile: Profile of the viewer
-            swiped_profiles: List of candidate profiles
-            top_k: Number of recommendations to return
+            viewer_profile: The profile of the user viewing recommendations
+            swiped_profiles: List of candidate profiles to rank
+            top_k: Number of top recommendations to return
+            
         Returns:
-            List of (profile, score) tuples
+            List of (profile, score) tuples for top recommendations
         """
-        # Calculate scores for all profiles
-        scores = []
+        # Apply hard filters first
+        filtered_profiles = []
+        
+        # Track filter failures for reporting
+        failed_date = failed_budget = failed_gender = failed_age = 0
+        
+        # Helper function to parse dates consistently
+        def parse_date(date_val):
+            if isinstance(date_val, str) and date_val.upper() == "IMMEDIATELY":
+                return pd.Timestamp.now()
+            try:
+                return pd.to_datetime(date_val)
+            except:
+                return None
+        
+        # Parse viewer's available date
+        viewer_available_at = parse_date(viewer_profile.available_at)
+        
         for profile in swiped_profiles:
-            if profile.user_id != viewer_profile.user_id:
-                score = self.predict_probability(viewer_profile, profile)
-                scores.append((profile, score))
-
-        # Sort by score in descending order
-        scores.sort(key=lambda x: x[1], reverse=True)
-
-        # Return top k
-        return scores[:top_k]
+            # Skip if it's the same user
+            if profile.user_id == viewer_profile.user_id:
+                continue
+            
+            # 1. Date range check (within 2 weeks)
+            if viewer_available_at and profile.available_at:
+                profile_available_at = parse_date(profile.available_at)
+                if profile_available_at:
+                    if not (
+                        (viewer_available_at - pd.Timedelta(days=14))
+                        <= profile_available_at
+                        <= (viewer_available_at + pd.Timedelta(days=14))
+                    ):
+                        failed_date += 1
+                        continue
+            
+            # 2. Budget overlap check
+            if viewer_profile.rent_budget_range and profile.rent_budget_range:
+                viewer_min, viewer_max = viewer_profile.rent_budget_range
+                candidate_min, candidate_max = profile.rent_budget_range
+                
+                # Check if there's no overlap in budget ranges
+                if viewer_max < candidate_min or candidate_max < viewer_min:
+                    failed_budget += 1
+                    continue
+            
+            # 3. Age range check
+            if hasattr(viewer_profile, 'age_range') and viewer_profile.age_range:
+                min_age, max_age = viewer_profile.age_range
+                candidate_age = help_func.calculate_age(profile.birth_date)
+                
+                if candidate_age < min_age or candidate_age > max_age:
+                    failed_age += 1
+                    continue
+            
+            # 4. Gender preference check
+            if (viewer_profile.preferred_gender and profile.gender and 
+                profile.preferred_gender and viewer_profile.gender):
+                
+                # Check if viewer's preference matches candidate's gender
+                viewer_accepts_candidate = (
+                    viewer_profile.preferred_gender == "ANY" or 
+                    viewer_profile.preferred_gender == profile.gender
+                )
+                
+                # Check if candidate's preference matches viewer's gender
+                candidate_accepts_viewer = (
+                    profile.preferred_gender == "ANY" or 
+                    profile.preferred_gender == viewer_profile.gender
+                )
+                
+                # Only continue if both accept each other
+                if not (viewer_accepts_candidate and candidate_accepts_viewer):
+                    failed_gender += 1
+                    continue
+            
+            # If passed all hard filters, add to filtered profiles
+            filtered_profiles.append(profile)
+        
+        # Print filter statistics
+        print("\nFilter results:")
+        print(f"Failed date range: {failed_date}")
+        print(f"Failed budget overlap: {failed_budget}")
+        print(f"Failed age preference: {failed_age}")
+        print(f"Failed gender preference: {failed_gender}")
+        print(f"Passed all filters: {len(filtered_profiles)}")
+        
+        # If no profiles passed the hard filters, return empty list
+        if not filtered_profiles:
+            return []
+        
+        # Create feature vectors for each candidate profile
+        feature_vectors = []
+        for candidate_profile in filtered_profiles:
+            feature_vector = self.create_feature_vector(viewer_profile, candidate_profile)
+            feature_vectors.append(feature_vector)
+        
+        # Convert to numpy array
+        X = np.array(feature_vectors)
+        
+        # Get probability predictions
+        probabilities = self.model.predict_proba(X)[:, 1]  # Probability of class 1 (like)
+        
+        # Create (profile, probability) pairs and sort by probability
+        recommendations = list(zip(filtered_profiles, probabilities))
+        recommendations.sort(key=lambda x: x[1], reverse=True)
+        
+        # Return top-k recommendations
+        return recommendations[:top_k]
 
     def get_booster(self):
         if not hasattr(self.model, "get_booster"):

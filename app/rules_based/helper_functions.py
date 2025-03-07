@@ -788,9 +788,7 @@ class CalculateScoreFunctions:
         """
         Calculate a budget overlap score between the starting profile budget and a target profile budget.
         Returns:
-        - 1.0: if budgets have significant overlap (>50%)
-        - 0.5: if budgets have some overlap (>0% but ≤50%)
-        - 0.0: if budgets have no overlap
+        - Float between 0 and 1 representing the percentage of overlap
         - -1.0: if either budget is None
         """
         if starting_budget is None or target_budget is None:
@@ -805,20 +803,17 @@ class CalculateScoreFunctions:
 
         # Calculate overlap length
         overlap_length = min(start_max, target_max) - max(start_min, target_min)
-        budget_range = start_max - start_min
+        
+        # Calculate the total range (use the larger of the two ranges)
+        start_range = start_max - start_min
+        target_range = target_max - target_min
+        budget_range = max(start_range, target_range)
 
         if budget_range <= 0:
             return 0.0
 
-        overlap_percentage = overlap_length / budget_range
-
-        # Categorize into three levels
-        if overlap_percentage > 0.5:
-            return 1.0
-        elif overlap_percentage > 0:
-            return 0.5
-        else:
-            return 0.0
+        # Return actual overlap percentage
+        return overlap_length / budget_range
 
     @staticmethod
     def calculate_age_similarity_score(starting_age: int, target_age: int) -> float:
