@@ -42,7 +42,7 @@ class Profile:
         interests: Optional[List[str]],
         profile_last_activity: Optional[datetime],
         age_similarity_weight=0.6,
-        gender_similarity_weight=0.4,
+        gender_similarity_weight=0.6,
         occupation_weight=0.273,
         special_origin_country_weight=0.2,
         university_weight=0.2,

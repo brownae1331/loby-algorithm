@@ -122,9 +122,7 @@ def initialize_profile_list_from_csv(csv_path: str) -> List[Profile]:
                 rent_budget = None
                 if pd.notna(row.get("filter_rent_budget_range")):
                     # Parse the string format "[min,max)"
-                    budget_str = row["filter_rent_budget_range"].strip(
-                        "[]()"
-                    )  # Remove brackets/parentheses
+                    budget_str = row["filter_rent_budget_range"].strip("[]()")
                     min_budget, max_budget = map(int, budget_str.split(","))
                     rent_budget = (min_budget, max_budget)
 
@@ -132,42 +130,48 @@ def initialize_profile_list_from_csv(csv_path: str) -> List[Profile]:
                 age_preference = None
                 if pd.notna(row.get("filter_age_range")):
                     # Parse the string format "[min,max)"
-                    age_str = row["filter_age_range"].strip(
-                        "[]()"
-                    )  # Remove brackets/parentheses
+                    age_str = row["filter_age_range"].strip("[]()")
                     min_age, max_age = map(int, age_str.split(","))
                     age_preference = (min_age, max_age)
 
+                # Handle "IMMEDIATELY" in available_at
+                available_at = row["available_at"]
+                if (
+                    isinstance(available_at, str)
+                    and available_at.upper() == "IMMEDIATELY"
+                ):
+                    available_at = pd.Timestamp.now()
+                else:
+                    available_at = pd.to_datetime(available_at)
+
                 profile = Profile(
-                    user_id=row["profile_user_id"],
-                    first_name=row.get("profile_first_name"),
-                    last_name=row.get("profile_last_name"),
-                    birth_date=pd.to_datetime(row["profile_birth_date"]),
-                    gender=row.get("profile_gender"),
-                    origin_country=row.get("profile_origin_country"),
-                    occupation=row.get("profile_occupation"),
-                    work_industry=row.get("profile_work_industry")
-                    if pd.notna(row.get("profile_work_industry"))
+                    user_id=row["user_id"],
+                    first_name=row.get("first_name"),
+                    last_name=row.get("last_name"),
+                    birth_date=pd.to_datetime(row["birth_date"]),
+                    gender=row.get("gender"),
+                    origin_country=row.get("origin_country"),
+                    occupation=row.get("occupation"),
+                    work_industry=row.get("work_industry")
+                    if pd.notna(row.get("work_industry"))
                     else None,
-                    university_id=row.get("profile_university")
-                    if pd.notna(row.get("profile_university"))
+                    university_id=row.get("university_id")
+                    if pd.notna(row.get("university_id"))
                     else None,
-                    course=row.get("profile_course")
-                    if pd.notna(row.get("profile_course"))
+                    course=row.get("course_id")
+                    if pd.notna(row.get("course_id"))
                     else None,
-                    activity_hours=row.get("profile_activity_hours"),
-                    smoking=row.get("profile_smoking"),
-                    extrovert_level=row.get("profile_extrovert_level", 0),
-                    cleanliness_level=row.get("profile_cleanliness_level", 0),
-                    partying_level=row.get("profile_partying_level", 0),
+                    activity_hours=row.get("activity_hours"),
+                    smoking=row.get("smoking"),
+                    extrovert_level=row.get("extrovert_level", 0),
+                    cleanliness_level=row.get("cleanliness_level", 0),
+                    partying_level=row.get("partying_level", 0),
                     sex_living_preference=row.get("filter_gender"),
                     rent_location_preference="London",  # row.get("filter_rent_location")
                     age_preference=age_preference,
                     rent_budget=rent_budget,
-                    available_at=row.get("filter_available_at"),
-                    profile_last_activity=pd.to_datetime(row["profile_last_activity"])
-                    if pd.notna(row["profile_last_activity"])
-                    else None,
+                    available_at=available_at,  # Use the processed available_at value
+                    profile_last_activity=pd.to_datetime(row["created_at"]),
                     is_verified=False,
                     description=None,
                     languages=[],
@@ -179,7 +183,7 @@ def initialize_profile_list_from_csv(csv_path: str) -> List[Profile]:
                 profile_objects.append(profile)
             except Exception as e:
                 print(
-                    f"Error creating profile for user_id {row.get('profile_user_id', 'unknown')}: {str(e)}"
+                    f"Error creating profile for user_id {row.get('user_id', 'unknown')}: {str(e)}"
                 )
                 continue
 
@@ -206,7 +210,7 @@ def users_hard_filters(
         if filters.get("country"):
             if (
                 not profile.origin_country
-                or profile.origin_country.upper() != filters["country"].upper()
+                or profile.origin_country != filters["country"]
             ):
                 matches_filters = False
 
@@ -214,7 +218,7 @@ def users_hard_filters(
         if filters.get("university"):
             if (
                 not profile.university_id
-                or profile.university_id.upper() != filters["university"].upper()
+                or profile.university_id != filters["university"]
             ):
                 matches_filters = False
 
@@ -238,7 +242,11 @@ def users_hard_filters(
         if filters.get("active_today"):
             if (
                 not profile.profile_last_activity
-                or (pd.Timestamp.now() - profile.profile_last_activity).days > 1
+                or (
+                    pd.Timestamp.now(tz=profile.profile_last_activity.tz)
+                    - profile.profile_last_activity
+                ).days
+                > 1
             ):
                 matches_filters = False
 
@@ -247,33 +255,46 @@ def users_hard_filters(
 
     # Add debug prints
     print(f"\nApplying filters: {filters}")
-    print(f"Profiles after filtering: {len(filtered_profiles)}")
+    print(f"Before filtering: {len(profile_objects)} profiles")
+    print(f"After filtering: {len(filtered_profiles)} profiles")
     if len(filtered_profiles) == 0:
         print("No profiles matched the specified filters.")
         for filter_name, filter_value in filters.items():
-            matching_count = sum(
-                1
-                for p in profile_objects
-                if getattr(
-                    p,
-                    {
-                        "country": "origin_country",
-                        "university": "university_id",
-                        "course": "course",
-                        "work_industry": "work_industry",
-                    }.get(filter_name, filter_name),
+            if filter_name == "active_today":
+                matching_count = sum(
+                    1
+                    for p in profile_objects
+                    if p.profile_last_activity
+                    and (
+                        pd.Timestamp.now(tz=p.profile_last_activity.tz)
+                        - p.profile_last_activity
+                    ).days
+                    <= 1
                 )
-                and getattr(
-                    p,
-                    {
-                        "country": "origin_country",
-                        "university": "university_id",
-                        "course": "course",
-                        "work_industry": "work_industry",
-                    }.get(filter_name, filter_name),
-                ).upper()
-                == filter_value.upper()
-            )
+            else:
+                matching_count = sum(
+                    1
+                    for p in profile_objects
+                    if getattr(
+                        p,
+                        {
+                            "country": "origin_country",
+                            "university": "university_id",
+                            "course": "course",
+                            "work_industry": "work_industry",
+                        }.get(filter_name, filter_name),
+                    )
+                    and getattr(
+                        p,
+                        {
+                            "country": "origin_country",
+                            "university": "university_id",
+                            "course": "course",
+                            "work_industry": "work_industry",
+                        }.get(filter_name, filter_name),
+                    )
+                    == filter_value
+                )
             print(f"Profiles matching {filter_name}: {matching_count}")
 
     return filtered_profiles
@@ -283,16 +304,17 @@ def assign_profiles_to_profile_list(
     starting_profile: Profile,
     profile_objects: List[Profile],
     profile_ids: Union[int, List[int]] = None,
-    filters: dict = None,  # Add filters parameter
+    filters: dict = None,
 ) -> List[Profile]:
     """Assign profiles to the profile list based on move-in month, city, sex_living preference,
     age preference, rent budget, and optional custom filters"""
 
-    # If custom filters are provided, apply them first
-    if filters:
-        profile_objects = users_hard_filters(starting_profile, profile_objects, filters)
-        if not profile_objects:  # If no profiles match filters, return empty list
-            return []
+    # # If custom filters are provided, apply them first
+    # if filters:
+    #     profile_objects = users_hard_filters(starting_profile, profile_objects, filters)
+    #     if not profile_objects:
+    #         return []
+    #     print(f"\nAfter hard filters: {len(profile_objects)} profiles")
 
     # First apply basic filters
     profile_list = []
@@ -318,23 +340,37 @@ def assign_profiles_to_profile_list(
 
     # Handle the starting profile date
     starting_available_at = parse_date(starting_profile.available_at)
+    print(f"\nStarting profile available at: {starting_available_at}")
+
+    failed_date = failed_location = failed_gender = failed_age = failed_budget = 0
+
     for profile in profile_objects:
         if profile.user_id in profile_ids:
-            # Handle the "IMMEDIATELY" case for each profile
             profile_available_at = parse_date(profile.available_at)
-            if (
-                # Date range check
+
+            # Date range check
+            if not (
                 (starting_available_at - timedelta(days=14))
                 <= profile_available_at
                 <= (starting_available_at + timedelta(days=14))
-                # Location check
-                and CalculateScoreFunctions.location_similarity_score(
+            ):
+                failed_date += 1
+                continue
+
+            # Location check
+            if (
+                not CalculateScoreFunctions.location_similarity_score(
                     starting_profile.rent_location_preference,
                     profile.rent_location_preference,
                 )
                 > 0
-                # Gender preference check
-                and (
+            ):
+                failed_location += 1
+                continue
+
+            # Gender preference check
+            if not (
+                (
                     starting_profile.sex_living_preference == "ANY"
                     or starting_profile.sex_living_preference == profile.gender
                 )
@@ -342,20 +378,41 @@ def assign_profiles_to_profile_list(
                     profile.sex_living_preference == "ANY"
                     or profile.sex_living_preference == starting_profile.gender
                 )
-                # Age preference check
-                and starting_profile.age_preference[0]
+            ):
+                failed_gender += 1
+                continue
+
+            # Age preference check
+            if not (
+                starting_profile.age_preference[0]
                 <= calculate_age(profile.birth_date)
                 <= starting_profile.age_preference[1]
                 and profile.age_preference[0]
                 <= calculate_age(starting_profile.birth_date)
                 <= profile.age_preference[1]
-                # Budget overlap check
-                and CalculateScoreFunctions.calculate_budget_overlap_score(
+            ):
+                failed_age += 1
+                continue
+
+            # Budget overlap check
+            if (
+                not CalculateScoreFunctions.calculate_budget_overlap_score(
                     starting_profile.rent_budget, profile.rent_budget
                 )
                 > 0
             ):
-                profile_list.append(profile)
+                failed_budget += 1
+                continue
+
+            profile_list.append(profile)
+
+    print("\nFilter results:")
+    print(f"Failed date range: {failed_date}")
+    print(f"Failed location: {failed_location}")
+    print(f"Failed gender preference: {failed_gender}")
+    print(f"Failed age preference: {failed_age}")
+    print(f"Failed budget overlap: {failed_budget}")
+    print(f"Passed all filters: {len(profile_list)}")
 
     return profile_list
 
@@ -530,6 +587,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
         )
         * profile.activity_hours_weight
     )
+
     university_score: float = ComparisonFunctions.compare_university(
         starting_profile.university_id, profile.university_id
     )
@@ -544,8 +602,8 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     )
 
     overall_score: float = (
-        budget_overlap_score
-        + age_similarity_score
+        # budget_overlap_score
+        +age_similarity_score
         + origin_country_score
         + course_score
         + occupation_score
@@ -576,6 +634,42 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile) -> floa
     )
 
     return normalized_score
+
+
+def calculate_mutual_likes_scores(
+    starting_profile: Profile,
+    users_who_liked_me: List[int],
+    profile_list: List[Profile],
+) -> List[dict]:
+    """
+    Calculate matching scores for profiles who liked each other.
+    Returns a list of dictionaries containing the mutual like data.
+    """
+    mutual_likes = []
+
+    # Get profiles who liked the starting profile
+    liked_me_profiles = [p for p in profile_list if p.user_id in users_who_liked_me]
+
+    # Check for mutual likes
+    for profile in liked_me_profiles:
+        if any(liked.user_id == profile.user_id for liked in starting_profile.likes):
+            # Calculate scores in both directions
+            forward_score = calculate_overall_score(starting_profile, profile)
+            reverse_score = calculate_overall_score(profile, starting_profile)
+
+            mutual_likes.append(
+                {
+                    "user_1_id": starting_profile.user_id,
+                    "user_1_name": f"{starting_profile.first_name} {starting_profile.last_name}",
+                    "user_2_id": profile.user_id,
+                    "user_2_name": f"{profile.first_name} {profile.last_name}",
+                    "user_1_to_2_score": forward_score,
+                    "user_2_to_1_score": reverse_score,
+                    "average_score": (forward_score + reverse_score) / 2,
+                }
+            )
+
+    return mutual_likes
 
 
 # ======================

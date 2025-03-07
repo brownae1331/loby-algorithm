@@ -1,39 +1,42 @@
+import sys
 import os
 import pandas as pd
 import numpy as np
-from datetime import datetime
-from generate_profiles2 import Profile
-from manage2 import XGBoostRecommender
 import random
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
-    confusion_matrix,
-)
-import seaborn as sns
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-import xgboost as xgb
-from model_analyzer import ModelAnalyzer
-import sys
-import pickle
-
-# Get the absolute path to the parent directory (i have to do this for some reason, but it works)
-current_dir = os.path.dirname(os.path.abspath(__file__))  # Gets XGBoost directory
-parent_dir = os.path.dirname(current_dir)  # Gets Loby_Algo directory
-
-# Add the parent directory to Python's path
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
-
-from app.rules_based.helper_functions import calculate_age
-from manage2 import XGBoostRecommender
-from generate_profiles2 import Profile
-import pandas as pd
+from typing import List, Tuple, Dict, Optional
 from datetime import datetime
-import xgboost as xgb
+import matplotlib.pyplot as plt
+
+# Get absolute path to project root and add to Python path
+project_root = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+app_path = os.path.join(project_root, "app")
+
+# Add both paths
+sys.path.append(project_root)
+sys.path.append(app_path)
+
+print(f"Project root: {project_root}")  # Debug print
+print(f"App path: {app_path}")  # Debug print
+print(f"Python path: {sys.path}")  # Debug print
+
+# Import the Profile class from generate_profiles2.py instead of app/rules_based/generate_profiles.py
+from XGboost.generate_profiles2 import Profile
+from app.rules_based import helper_functions as help_func
+# Import the XGBoostRecommender from manage2.py
+from manage2 import XGBoostRecommender
+
+def parse_range(range_str):
+    """Parse a range string like '[400,801)' into a tuple (400, 801)"""
+    if not range_str or pd.isna(range_str):
+        return None
+    # Remove brackets and parse numbers
+    clean_str = str(range_str).replace('[', '').replace(')', '').replace(']', '')
+    try:
+        low, high = clean_str.split(',')
+        return (int(float(low)), int(float(high)))
+    except (ValueError, TypeError):
+        print(f"Warning: Could not parse range string: {range_str}")
+        return None
 
 
 def load_profiles_from_csv(csv_path):
@@ -41,34 +44,21 @@ def load_profiles_from_csv(csv_path):
     df = pd.read_csv(csv_path)
     profiles = {}
 
-    # Print available columns for debugging
-    print("\nAvailable columns in CSV:")
-    print(df.columns.tolist())
-
     for _, row in df.iterrows():
         try:
             profile = Profile(
+                id=row["id"],
                 user_id=row["user_id"],
                 first_name=row.get("first_name", ""),
                 last_name=row.get("last_name", ""),
                 birth_date=pd.to_datetime(row["birth_date"]),
                 is_verified=row.get("is_verified", False),
                 gender=row.get("gender", ""),
-                description=None,
                 languages=row.get("languages", "").split(",")
                 if pd.notna(row.get("languages"))
                 else [],
                 origin_country=row.get("origin_country", ""),
                 occupation=row.get("occupation", ""),
-                work_industry=row.get("work_industry")
-                if pd.notna(row.get("work_industry"))
-                else None,
-                university_id=row.get("university_id")
-                if pd.notna(row.get("university_id"))
-                else None,
-                course=row.get("course_id")
-                if pd.notna(row.get("course_id"))
-                else None,  # Changed from 'course' to 'course_id'
                 sexual_orientation=row.get("sexual_orientation", ""),
                 pets=row.get("pets") if pd.notna(row.get("pets")) else None,
                 activity_hours=row.get("activity_hours", ""),
@@ -76,14 +66,21 @@ def load_profiles_from_csv(csv_path):
                 extrovert_level=row.get("extrovert_level", 0),
                 cleanliness_level=row.get("cleanliness_level", 0),
                 partying_level=row.get("partying_level", 0),
-                sex_living_preference=None,
-                rent_location_preference=None,
-                age_preference=None,
-                rent_budget=None,
-                last_filter_processed_at=None,
-                available_at=None,
-                roommate_count_preference=None,
-                interests=[],
+                work_industry=row.get("work_industry")
+                if pd.notna(row.get("work_industry"))
+                else None,
+                university_id=row.get("university_id")
+                if pd.notna(row.get("university_id"))
+                else None,
+                course_id=row.get("course_id")
+                if pd.notna(row.get("course_id"))
+                else None,  
+                created_at=row.get("created_at", None),
+                contract_length=row.get("contract_length", None),
+                age_range=parse_range(row.get("age_range", None)),
+                preferred_gender =row.get("preferred_gender", None),
+                rent_budget_range=parse_range(row.get("rent_budget_range", None)),
+                available_at=row.get("available_at", None),
             )
             profiles[row["user_id"]] = profile
         except Exception as e:
@@ -95,11 +92,12 @@ def load_profiles_from_csv(csv_path):
 
 
 def generate_training_data(
-    profiles: dict[int, Profile], likes_df: pd.DataFrame, negative_ratio: float = 1.0
-):  # negaive_ratio is a parameter
+    profiles: Dict[int, Profile], 
+    likes_df: pd.DataFrame,  # positive interactions (likes)
+    swipes_df: pd.DataFrame  # negative interactions (left swipes)
+):
     """
-    Generate training data with positive cases from likes and negative cases from non-likes
-    negative_ratio: number of negative samples per positive sample
+    Generate training data using actual positive (likes) and negative (left swipes) interactions
     """
     training_data = []
 
@@ -117,224 +115,127 @@ def generate_training_data(
                 )
             )
 
-    # Generate negative samples
-    all_user_ids = list(profiles.keys())
-    num_negative_samples = int(len(training_data) * negative_ratio)
+    # Add negative samples from swipes
+    for _, row in swipes_df.iterrows():
+        viewer_id = row["profile_1_id"] 
+        swiped_id = row["profile_2_id"]  
 
-    negative_pairs = set()
-    positive_pairs = set(
-        (row["profile_id_1"], row["profile_id_2"]) for _, row in likes_df.iterrows()
-    )
-
-    # Pre-calculate valid candidate pairs to improve performance
-    attempts = 0
-    max_attempts = num_negative_samples * 10  # Prevent infinite loops
-
-    while len(negative_pairs) < num_negative_samples and attempts < max_attempts:
-        viewer_id = random.choice(all_user_ids)
-        candidate_id = random.choice(all_user_ids)
-
-        if (
-            viewer_id != candidate_id
-            and (viewer_id, candidate_id) not in positive_pairs
-        ):
-            negative_pairs.add((viewer_id, candidate_id))
+        if viewer_id in profiles and swiped_id in profiles:
             training_data.append(
                 (
                     profiles[viewer_id],
-                    profiles[candidate_id],
+                    profiles[swiped_id],
                     False,  # negative case
                 )
             )
-        attempts += 1
 
-    if attempts >= max_attempts:
-        print(
-            f"Warning: Could only generate {len(negative_pairs)} negative samples out of {num_negative_samples} requested"
-        )
+    print(f"Total training samples: {len(training_data)}")
+    print(f"Positive samples: {sum(1 for _, _, label in training_data if label)}")
+    print(f"Negative samples: {sum(1 for _, _, label in training_data if not label)}")
 
     return training_data
 
 
-def print_feature_importance(model):
-    """
-    Print and plot the feature importance of the trained XGBoost model.
-    """
-    # Define feature names in the exact order as they appear in the feature vector
-    feature_names = [
-        "budget_overlap",
-        "viewer_age",
-        "candidate_age",
-        "age_difference",
-        "origin_country_match",
-        "viewer_country_code",
-        "candidate_country_code",
-        "course_match",
-        "viewer_course_code",
-        "candidate_course_code",
-        "university_match",
-        "viewer_university_code",
-        "candidate_university_code",
-        "occupation_match",
-        "viewer_occupation_code",
-        "candidate_occupation_code",
-        "industry_match",
-        "viewer_industry_code",
-        "candidate_industry_code",
-        "smoking_match",
-        "viewer_smoking_code",
-        "candidate_smoking_code",
-        "activity_hours_match",
-        "viewer_activity_code",
-        "candidate_activity_code",
-        "gender_match",
-        "viewer_gender_code",
-        "candidate_gender_code",
-        "language_overlap",
-        "viewer_language_count",
-        "candidate_language_count",
-        "has_english_match",
-    ]
+def calculate_age(birth_date):
+    """Calculate age from birth date"""
+    if birth_date is None:
+        return 0
+    today = datetime.now()
+    age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    return age
 
-    # This 'try' block is cursor
-    try:
-        # Get feature importances using XGBoost's native method
-        booster = model.get_booster()
-        importances = [
-            booster.get_score(importance_type="gain").get(f"f{i}", 0)
-            for i in range(len(feature_names))
-        ]
-        if not any(importances):  # Check if we got any non-zero importances
-            print("[DEBUG] Cannot retrieve feature importances")
-            return
-
-        # Normalize the importances
-        total_importance = sum(importances) if sum(importances) > 0 else 1
-        normalized_scores = [score / total_importance for score in importances]
-
-        # Print the feature importances
-        print("\nFeature Importance Scores:")
-        print("-" * 60)
-        print(f"{'Feature Name':<40} {'Importance':>10}")
-        print("-" * 60)
-
-        # Create sorted pairs of (feature_name, importance)
-        importance_pairs = list(
-            zip(feature_names[: len(importances)], normalized_scores)
-        )
-        importance_pairs.sort(key=lambda x: x[1], reverse=True)
-
-        # Print each feature and its importance
-        for name, importance in importance_pairs:
-            print(f"{name:<40} {importance:>10.3f}")
-
-        # Plot the feature importances
-        plt.figure(figsize=(10, 6))
-        plt.bar(
-            [x[0] for x in importance_pairs],
-            [x[1] for x in importance_pairs],
-            color="skyblue",
-        )
-        plt.xlabel("Features")
-        plt.ylabel("Normalized Importance")
-        plt.title("Feature Importance")
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
-        plt.show()
-
-        # Additionally, using XGBoost's built-in plot_importance
-        booster = model.get_booster()
-        plt.figure(figsize=(10, 6))
-        xgb.plot_importance(
-            booster,
-            max_num_features=10,
-            importance_type="gain",
-            xlabel="Gain",
-            title="Feature Importance (Gain)",
-        )
-        plt.show()
-
-    except Exception as e:
-        print(f"\n[ERROR] An exception occurred in print_feature_importance: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
-
-    print("\n[DEBUG] Completed print_feature_importance function.")
+def print_feature_importance_with_names(model, feature_names):
+    """Print feature importance with proper feature names"""
+    # Get feature importance
+    importance = model.get_booster().get_score(importance_type="gain")
+    
+    # Create a mapping from fX to actual feature names
+    feature_map = {f"f{i}": name for i, name in enumerate(feature_names)}
+    
+    # Create a dictionary with proper feature names
+    named_importance = {feature_map.get(feat, feat): imp for feat, imp in importance.items()}
+    
+    # Convert to DataFrame and sort
+    importance_df = pd.DataFrame({
+        "feature": list(named_importance.keys()),
+        "importance": list(named_importance.values())
+    })
+    importance_df = importance_df.sort_values("importance", ascending=False)
+    
+    # Print features by importance
+    print("\nFeature Importance with Proper Names:")
+    print("-----------------------------------")
+    for i, (feature, imp) in enumerate(zip(importance_df["feature"], importance_df["importance"])):
+        print(f"{i+1}. {feature}: {imp:.4f}")
+    
+    # Plot with proper names
+    plt.figure(figsize=(12, 10))
+    plt.barh(
+        importance_df["feature"].values[:min(20, len(importance_df))][::-1],
+        importance_df["importance"].values[:min(20, len(importance_df))][::-1]
+    )
+    plt.xlabel("Importance")
+    plt.ylabel("Feature")
+    plt.title("Feature Importance")
+    plt.tight_layout()
+    plt.savefig("feature_importance_named.png")
+    print("\nFeature importance plot with proper names saved to feature_importance_named.png")
 
 
 def main():
+    # Get current directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
     # Construct paths to CSV files
-    profiles_path = os.path.join(current_dir, "profile.csv")
-    likes_path = os.path.join(current_dir, "profile_like.csv")
-
+    profiles_path = os.path.join(current_dir, "profiles+filters.csv")
+    likes_path = os.path.join(current_dir, "profile_like_05-03.csv")
+    swipes_path = os.path.join(current_dir, "profile_swipes_05-03.csv")
+    
+    # 1. Load profiles from CSV
     test_profiles = load_profiles_from_csv(profiles_path)
 
-    # 2. Create swipe history (simulating user preferences).
-    #    The tuple is (viewer_profile, candidate_profile, liked_bool).
-    swipe_history = generate_training_data(test_profiles, pd.read_csv(likes_path))
+    # 2. Create swipe history (simulating user preferences)
+    print(f"\nGenerating training data from likes and swipes")
+    swipe_history = generate_training_data(
+        test_profiles, 
+        pd.read_csv(likes_path), 
+        pd.read_csv(swipes_path)
+    )
 
     # 3. Initialize and train recommender
+    print(f"\nTraining XGBoost model")
     recommender = XGBoostRecommender()
     recommender.train(swipe_history)
+
+    # Print feature importance with proper names
+    print_feature_importance_with_names(recommender.model, recommender.feature_names)
 
     # 4. Create a list of profiles we want to rank for a given viewer
     # Convert profiles dictionary to list once
     profile_list = list(test_profiles.values())
 
-    # Use the same list for both purposes
-    recommendations = recommender.recommend_profiles(
-        viewer_profile=profile_list[0], swiped_profiles=profile_list, top_k=50
-    )
-
-    profile1 = profile_list[0]
+    # 5. Generate recommendations for the first profile
+    print(f"\nGenerating recommendations for user_id={profile_list[0].user_id}")
+    user_id = 202  # Replace with the user ID you want
+    viewer_profile = next((p for p in profile_list if p.user_id == user_id), None)
+    if viewer_profile:
+        recommendations = recommender.recommend_profiles(
+            viewer_profile=viewer_profile,
+            swiped_profiles=profile_list, 
+            top_k=10
+        )
+    else:
+        print(f"User ID {user_id} not found")
 
     # 6. Print results
-    print("\nRecommendations for user_id=1:")
-    print(f"Profile {profile1.user_id}:")
-    print(f"  Birth date: {calculate_age(profile1.birth_date)}")
-    print(f"  Origin country: {profile1.origin_country}")
-    print(f"  Course: {profile1.course}")
-    # print(f"  Budget: £{profile1.rent_budget[0]}-{profile1.rent_budget[1]}")
-    print(f"  Age: {calculate_age(profile1.birth_date)}")
-    print(f"  Smoking: {profile1.smoking}")
-    print(f"  Activity: {profile1.activity_hours}")
-
-    print("\nRecommendations for all specified features:")
-    for profile, probability in recommendations:
-        print(f"Profile {profile.user_id}:")
-        # print(f"  Budget: £{profile.rent_budget[0]}-{profile.rent_budget[1]}")
-        print(f"  Birth date: {calculate_age(profile.birth_date)}")
-        print(f"  Origin country: {profile.origin_country}")
-        print(f"  Course: {profile.course}")
-        print(f"  Occupation: {profile.occupation}")
-        print(f"  Work industry: {profile.work_industry}")
-        print(f"  Smoking: {profile.smoking}")
-        print(f"  University: {profile.university_id}")
-        print(f"  Match Probability: {probability * 100:.1f}%\n")
-
-    booster = recommender.get_booster()
-    feature_importances = booster.get_score(importance_type="weight")
-
-    feature_names = [
-        "budget",
-        "birth date",
-        "origin country",
-        "course",
-        "occupation",
-        "work industry",
-        "smoking",
-        "activity hours",
-        "university",
-    ]
-
-    # Print feature importances
-    print("Feature Importances:")
-    for feature, importance in zip(feature_names, feature_importances.values()):
-        print(f"{feature}: {importance}")
-
-    with open("recommender.pkl", "wb") as file:
-        pickle.dump(recommender, file)
+    print("\nTop 5 recommendations:")
+    for i, (profile, score) in enumerate(recommendations[:5]):
+        print(f"{i+1}. User {profile.user_id}: {score:.4f} confidence")
+    
+    # 7. Save the model
+    model_path = os.path.join(current_dir, "xgboost_model.json")
+    recommender.save_model(model_path)
+    print(f"\nModel saved to {model_path}")
 
 
 if __name__ == "__main__":

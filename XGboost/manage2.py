@@ -25,11 +25,9 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
-    confusion_matrix,
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
-from model_analyzer import ModelAnalyzer
 
 
 class XGBoostRecommender:
@@ -93,7 +91,7 @@ class XGBoostRecommender:
         features = [
             # Budget overlap
             help_func.CalculateScoreFunctions.calculate_budget_overlap_score(
-                viewer_profile.rent_budget, swiped_profile.rent_budget
+                viewer_profile.rent_budget_range, swiped_profile.rent_budget_range
             ),
             # Age features
             help_func.calculate_age(viewer_profile.birth_date),
@@ -113,12 +111,12 @@ class XGBoostRecommender:
                 self.encoder.get_origin_country_code(swiped_profile.origin_country), 196
             ),
             # Course features
-            1.0 if viewer_profile.course == swiped_profile.course else 0.0,
+            1.0 if viewer_profile.course_id == swiped_profile.course_id else 0.0,
             self.normalize_encoded(
-                self.encoder.get_course_code(viewer_profile.course), 250
+                self.encoder.get_course_code(viewer_profile.course_id), 100
             ),
             self.normalize_encoded(
-                self.encoder.get_course_code(swiped_profile.course), 250
+                self.encoder.get_course_code(swiped_profile.course_id), 100
             ),
             # University features
             1.0
@@ -234,167 +232,50 @@ class XGBoostRecommender:
         self, viewer_profile: Profile, swiped_profile: Profile
     ) -> float:
         """
-        Predict probability of viewer liking candidate.
-        Returns a float between 0 and 1.
+        Predict probability of a match between viewer and candidate.
+        Args:
+            viewer_profile: Profile of the viewer
+            swiped_profile: Profile of the candidate
+        Returns:
+            Probability of a match
         """
-        if self.model is None:
-            raise ValueError("Model not trained yet!")
-
-        # Convert profiles to feature vector
-        features = self.create_feature_vector(viewer_profile, swiped_profile)
-        # Get probability of "liked" (index 1 is probability of class 1)
-
-        return self.model.predict_proba([features])[0][1]
+        features = [self.create_feature_vector(viewer_profile, swiped_profile)]
+        return self.model.predict_proba(features)[0, 1]
 
     def recommend_profiles(
         self, viewer_profile: Profile, swiped_profiles: List[Profile], top_k: int = 50
     ) -> List[Tuple[Profile, float]]:
         """
-        Recommend top-k profiles for viewer using XGBoost predictions.
-        Returns a list of (Profile, probability) sorted by descending probability.
+        Recommend profiles for a given viewer.
+        Args:
+            viewer_profile: Profile of the viewer
+            swiped_profiles: List of candidate profiles
+            top_k: Number of recommendations to return
+        Returns:
+            List of (profile, score) tuples
         """
-        if self.model is None:
-            raise ValueError("Model not trained yet!")
+        # Calculate scores for all profiles
+        scores = []
+        for profile in swiped_profiles:
+            if profile.user_id != viewer_profile.user_id:
+                score = self.predict_probability(viewer_profile, profile)
+                scores.append((profile, score))
 
-        # Calculate probability scores for all candidates
-        scores = [
-            (candidate, self.predict_probability(viewer_profile, candidate))
-            for candidate in swiped_profiles
-        ]
+        # Sort by score in descending order
+        scores.sort(key=lambda x: x[1], reverse=True)
 
-        # Sort by probability score and return top-k profiles (with their scores)
-        sorted_candidates = sorted(scores, key=lambda x: x[1], reverse=True)
-        return sorted_candidates[:top_k]
+        # Return top k
+        return scores[:top_k]
 
     def get_booster(self):
-        if self.model is None:
+        if not hasattr(self.model, "get_booster"):
             raise ValueError("Model not trained yet!")
         return self.model.get_booster()
 
     def save_model(self, file_path):
         self.model.save_model(file_path)
 
-    # def analyze_feature_importance(self, plot: bool = True):
-    #     """
-    #     Analyze and visualize which features contribute most to matches
-    #     """
-    #     importance = self.model.get_booster().get_score(importance_type='gain')
-    #     sorted_importance = sorted(importance.items(), key=lambda x: x[1], reverse=True)
-
-    #     print("\nFeature Importance Analysis:")
-    #     print("-" * 50)
-    #     for feature, score in sorted_importance:
-    #         print(f"{feature}: {score:.4f}")
-
-    #     if plot:
-    #         plt.figure(figsize=(10, 6))
-    #         features, scores = zip(*sorted_importance)
-    #         plt.barh(features, scores)
-    #         plt.title('Feature Importance')
-    #         plt.xlabel('Importance Score')
-    #         plt.tight_layout()
-    #         plt.show()
-
-    # def evaluate_model(self, X_test, y_test):
-    #     """
-    #     Comprehensive model evaluation with metrics and visualizations
-    #     """
-    #     y_pred = self.model.predict(X_test)
-    #     y_prob = self.model.predict_proba(X_test)
-
-    #     # Calculate metrics
-    #     metrics = {
-    #         'Accuracy': accuracy_score(y_test, y_pred),
-    #         'Precision': precision_score(y_test, y_pred),
-    #         'Recall': recall_score(y_test, y_pred),
-    #         'F1 Score': f1_score(y_test, y_pred)
-    #     }
-
-    #     print("\nModel Performance Metrics:")
-    #     print("-" * 50)
-    #     for metric, value in metrics.items():
-    #         print(f"{metric}: {value:.4f}")
-
-    #     # Plot confusion matrix
-    #     cm = confusion_matrix(y_test, y_pred)
-    #     plt.figure(figsize=(8, 6))
-    #     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-    #     plt.title('Confusion Matrix')
-    #     plt.ylabel('True Label')
-    #     plt.xlabel('Predicted Label')
-    #     plt.show()
-
-    # def analyze_matching_patterns(self, X_test, y_test):
-    #     """
-    #     Analyze patterns in successful and unsuccessful matches
-    #     """
-    #     X_test_np = np.array(X_test)
-    #     successful_matches = X_test_np[y_test == 1]
-    #     unsuccessful_matches = X_test_np[y_test == 0]
-
-    #     print("\nMatching Pattern Analysis:")
-    #     print("-" * 50)
-
-    #     # Analyze key features in successful matches
-    #     print("\nSuccessful Matches Pattern:")
-    #     self._analyze_feature_patterns(successful_matches)
-
-    #     # Compare with unsuccessful matches
-    #     print("\nUnsuccessful Matches Pattern:")
-    #     self._analyze_feature_patterns(unsuccessful_matches)
-
-    # def _analyze_feature_patterns(self, matches):
-    #     """Helper method to analyze patterns in matches"""
-    #     if len(matches) == 0:
-    #         print("No matches to analyze")
-    #         return
-
-    #     # Calculate mean values for key features
-    #     feature_means = np.mean(matches, axis=0)
-    #     feature_stds = np.std(matches, axis=0)
-
-    #     key_features = {
-    #         'Budget Overlap': 0,
-    #         'Age Difference': 3,
-    #         'Origin Country Match': 4,
-    #         'Course Match': 7,
-    #         'Occupation Match': 13,
-    #         'Smoking Match': 19,
-    #         'Activity Hours Match': 22
-    #     }
-
-    #     for feature_name, idx in key_features.items():
-    #         print(f"{feature_name}:")
-    #         print(f"  Mean: {feature_means[idx]:.2f}")
-    #         print(f"  Std: {feature_stds[idx]:.2f}")
-
-    # def find_strong_correlations(self, X_test):
-    #     """
-    #     Find strong correlations between features
-    #     """
-    #     corr_matrix = np.corrcoef(np.array(X_test).T)
-    #     strong_correlations = []
-
-    #     for i in range(len(corr_matrix)):
-    #         for j in range(i + 1, len(corr_matrix)):
-    #             if abs(corr_matrix[i][j]) > 0.5:  # Threshold for strong correlation
-    #                 strong_correlations.append((i, j, corr_matrix[i][j]))
-
-    #     print("\nStrong Feature Correlations:")
-    #     print("-" * 50)
-    #     for i, j, corr in sorted(strong_correlations, key=lambda x: abs(x[2]), reverse=True):
-    #         print(f"Feature {i} and Feature {j}: {corr:.2f}")
-
 
 if __name__ == "__main__":
-    recommender = XGBoostRecommender()
-    # ... train the model ...
-
-    # Create analyzer with your trained model
-    analyzer = ModelAnalyzer(recommender.model)
-
-    # Use the analyzer methods
-    analyzer.analyze_feature_importance()
-    analyzer.evaluate_model(X_test, y_test)  # Use your actual test data
-    analyzer.analyze_matching_patterns(X_test, y_test)
-    analyzer.find_strong_correlations(X_test)
+    print("This file contains the XGBoostRecommender class.")
+    print("To train and use the model, run train_from_csv.py instead.")

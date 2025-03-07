@@ -40,10 +40,10 @@ def get_user_filters():
                 break
 
             if choice == "1":
-                country = input("Enter country code (e.g., GB, US): ").upper()
+                country = input("Enter country code (e.g., GB, US): ")
                 filters["country"] = country
             elif choice == "2":
-                university = input("Enter university (e.g., KCL, UCL): ").upper()
+                university = input("Enter university (e.g., KCL, UCL): ")
                 filters["university"] = university
             elif choice == "3":
                 course = input("Enter course: ")
@@ -59,25 +59,24 @@ def get_user_filters():
 
 def run_test():
     # Initialize profiles from CSV
-    csv_path = os.path.join(os.path.dirname(__file__), "big_boy_stuff.csv")
+    csv_path = os.path.join(
+        os.path.dirname(__file__),
+        "_SELECT_All_columns_from_profile_p_All_columns_from_profile_filt_202502081830.csv",
+    )
     all_profiles = initialize_profile_list_from_csv(csv_path)
 
-    if not all_profiles:
-        print("Failed to load profiles from CSV")
-        return
-
-    # Show available profiles before asking for input
-    print("\nAvailable profiles to choose from:")
+    # Print list of loaded profiles
+    print("\nAvailable profiles:")
+    print("-" * 50)
     for profile in all_profiles:
-        print(
-            f"ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, university: {profile.university_id}, course: {profile.course}, work industry: {profile.work_industry}"
-        )
+        print(f"ID: {profile.user_id} - {profile.first_name} {profile.last_name}")
+    print("-" * 50)
 
     # Get starting profile by user ID
     profile_user_id = int(input("\nEnter the User ID for the starting profile: "))
     try:
-        starting_profile = [p for p in all_profiles if p.user_id == profile_user_id][0]
-    except IndexError:
+        starting_profile = next(p for p in all_profiles if p.user_id == profile_user_id)
+    except StopIteration:
         print(f"No profile found with ID: {profile_user_id}")
         return
 
@@ -88,15 +87,15 @@ def run_test():
     profile_list = assign_profiles_to_profile_list(
         starting_profile, all_profiles, filters=filters
     )
-
-    print(f"Number of eligible profiles: {len(profile_list) if profile_list else 0}")
-
-    # Show available profiles to choose from
-    print("\nAvailable profiles to choose who liked the test user:")
+    print(f"\nNumber of eligible profiles: {len(profile_list)}")
     for profile in profile_list:
+        print(f"ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}")
+
+    if len(profile_list) == 0:
         print(
-            f"ID: {profile.user_id}, Name: {profile.first_name} {profile.last_name}, university: {profile.university_id}, course: {profile.course}, work industry: {profile.work_industry}"
+            "No profiles match the specified filters. Please try again with different filters."
         )
+        return
 
     # Get number of profiles that liked the test user
     num_liked_me = int(
@@ -132,7 +131,7 @@ def run_test():
         liked_profile = next((p for p in profile_list if p.user_id == user_id))
         if liked_profile:
             profiles_liked += 1
-            starting_profile.likes.append(liked_profile)  # add days later
+            starting_profile.likes.append(liked_profile)
 
             if profiles_liked == 5:
                 starting_profile = modify_weights_with_weighted_average(
@@ -246,7 +245,7 @@ def run_test():
                 "Rank": idx + 1,
                 "User ID": profile.user_id,
                 "Name": f"{profile.first_name} {profile.last_name}",
-                "Compatibility Score": f"{score:.2f}",
+                "Compatibility Score": score,
                 "Relationship": " & ".join(
                     [
                         "Liked by you" if liked_by_me else "",
