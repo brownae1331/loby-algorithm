@@ -193,9 +193,9 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Construct paths to CSV files
-    profiles_path = os.path.join(current_dir, "profiles_10-03.csv")
-    likes_path = os.path.join(current_dir, "profile_like_w_location_10-03.csv")
-    swipes_path = os.path.join(current_dir, "profile_swipes_11-03.csv")
+    profiles_path = os.path.join(current_dir, "profiles_11-03.csv")
+    likes_path = os.path.join(current_dir, "likes_11-03.csv")
+    swipes_path = os.path.join(current_dir, "swipes_11-03.csv")
     
     # 1. Load profiles from CSV
     test_profiles = load_profiles_from_csv(profiles_path)
@@ -237,7 +237,7 @@ def main():
             if "location_score" in likes_df.columns:
                 location_scores[(row["profile_id_1"], row["profile_id_2"])] = row["location_score"]
         
-        recommendations = recommender.recommend_profiles(
+        recommender.recommend_profiles(
             viewer_profile=viewer_profile,
             swiped_profiles=profile_list,
             location_scores=location_scores,
