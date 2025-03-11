@@ -6,6 +6,8 @@ import random
 from typing import List, Tuple, Dict, Optional
 from datetime import datetime
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 # Get absolute path to project root and add to Python path
 project_root = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -82,7 +84,7 @@ def load_profiles_from_csv(csv_path):
                 rent_budget_range=parse_range(row.get("rent_budget_range", None)),
                 available_at=row.get("available_at", None),
             )
-            profiles[row["user_id"]] = profile
+            profiles[row["id"]] = profile
         except Exception as e:
             print(f"Error creating profile for row: {row}")
             print(f"Error: {str(e)}")
@@ -105,6 +107,7 @@ def generate_training_data(
     for _, row in likes_df.iterrows():
         viewer_id = row["profile_id_1"]
         liked_id = row["profile_id_2"]
+        loc_score = row["location_score"]
 
         if viewer_id in profiles and liked_id in profiles:
             training_data.append(
@@ -112,6 +115,7 @@ def generate_training_data(
                     profiles[viewer_id],
                     profiles[liked_id],
                     True,  # positive case
+                    loc_score,  # Add location score
                 )
             )
 
@@ -119,19 +123,21 @@ def generate_training_data(
     for _, row in swipes_df.iterrows():
         viewer_id = row["profile_1_id"] 
         swiped_id = row["profile_2_id"]  
-
+        loc_score = row["location_score"]
+        
         if viewer_id in profiles and swiped_id in profiles:
             training_data.append(
                 (
                     profiles[viewer_id],
                     profiles[swiped_id],
                     False,  # negative case
+                    loc_score,  # Add location score
                 )
             )
 
     print(f"Total training samples: {len(training_data)}")
-    print(f"Positive samples: {sum(1 for _, _, label in training_data if label)}")
-    print(f"Negative samples: {sum(1 for _, _, label in training_data if not label)}")
+    print(f"Positive samples: {sum(1 for _, _, label, _ in training_data if label)}")
+    print(f"Negative samples: {sum(1 for _, _, label, _ in training_data if not label)}")
 
     return training_data
 
@@ -187,9 +193,9 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Construct paths to CSV files
-    profiles_path = os.path.join(current_dir, "profiles+filters.csv")
-    likes_path = os.path.join(current_dir, "profile_like_05-03.csv")
-    swipes_path = os.path.join(current_dir, "profile_swipes_05-03.csv")
+    profiles_path = os.path.join(current_dir, "profiles_10-03.csv")
+    likes_path = os.path.join(current_dir, "profile_like_w_location_10-03.csv")
+    swipes_path = os.path.join(current_dir, "profile_swipes_11-03.csv")
     
     # 1. Load profiles from CSV
     test_profiles = load_profiles_from_csv(profiles_path)
@@ -209,31 +215,38 @@ def main():
 
     # Print feature importance with proper names
     print_feature_importance_with_names(recommender.model, recommender.feature_names)
-
+    
     # 4. Create a list of profiles we want to rank for a given viewer
     # Convert profiles dictionary to list once
     profile_list = list(test_profiles.values())
 
     # 5. Generate recommendations for the first profile
-    user_id = 202  # The user ID you want
+    user_id = 2591  # The user ID you want
     viewer_profile = next((p for p in profile_list if p.user_id == user_id), None)
 
     if viewer_profile:
         print(f"\nGenerating recommendations for user_id={user_id}")
+        
+        # Create a dictionary of location scores from the likes data
+        location_scores = {}
+        
+        likes_df = pd.read_csv(likes_path)
+            
+            # Add location scores from likes
+        for _, row in likes_df.iterrows():
+            if "location_score" in likes_df.columns:
+                location_scores[(row["profile_id_1"], row["profile_id_2"])] = row["location_score"]
+        
         recommendations = recommender.recommend_profiles(
             viewer_profile=viewer_profile,
             swiped_profiles=profile_list,
+            location_scores=location_scores,
             top_k=10
         )
     else:
         print(f"User ID {user_id} not found in profiles")
-
-    # 6. Print results
-    print("\nTop 5 recommendations:")
-    for i, (profile, score) in enumerate(recommendations[:5]):
-        print(f"{i+1}. User {profile.user_id}: {score:.4f} confidence")
     
-    # 7. Save the model
+    # 6. Save the model
     model_path = os.path.join(current_dir, "xgboost_model.json")
     recommender.save_model(model_path)
     print(f"\nModel saved to {model_path}")

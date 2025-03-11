@@ -14,7 +14,7 @@ print(f"App path: {app_path}")  # Debug print
 print(f"Python path: {sys.path}")  # Debug print
 
 import numpy as np
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from XGboost.generate_profiles2 import Profile
@@ -25,6 +25,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     f1_score,
+    roc_auc_score,
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -53,6 +54,7 @@ class XGBoostRecommender:
             "smoking_match",
             "activity_hours_match",
             "gender_match",
+            "location_score",
         ]
 
     def normalize_encoded(self, value: Optional[int], max_val: int) -> float:
@@ -62,7 +64,7 @@ class XGBoostRecommender:
         return value / max_val
 
     def create_feature_vector(
-        self, viewer_profile: Profile, swiped_profile: Profile
+        self, viewer_profile: Profile, swiped_profile: Profile, loc_score: Optional[float] = None
     ) -> List[float]:
         """Create feature vector using standardized encodings from FeatureEncoder"""
 
@@ -81,18 +83,14 @@ class XGBoostRecommender:
             1.0
             if viewer_profile.origin_country == swiped_profile.origin_country
             else 0.0,
-            # Course match
-            1.0 if viewer_profile.course_id == swiped_profile.course_id else 0.0,
-            # University match
-            1.0
-            if viewer_profile.university_id == swiped_profile.university_id
-            else 0.0,
+            # Course match - context-aware
+            self.course_match(viewer_profile, swiped_profile),
+            # University match - context-aware
+            self.university_match(viewer_profile, swiped_profile),
             # Occupation match
             1.0 if viewer_profile.occupation == swiped_profile.occupation else 0.0,
-            # Industry match
-            1.0
-            if viewer_profile.work_industry == swiped_profile.work_industry
-            else 0.0,
+            # Industry match - context-aware
+            self.industry_match(viewer_profile, swiped_profile),
             # Smoking match
             1.0 if viewer_profile.smoking == swiped_profile.smoking else 0.0,
             # Activity hours match
@@ -101,22 +99,57 @@ class XGBoostRecommender:
             else 0.0,
             # Gender match
             1.0 if viewer_profile.gender == swiped_profile.gender else 0.0,
+            # Location score (normalize to 0-1 range)
+            float(loc_score)/0.2 if loc_score is not None else 0.5,  # Default to 0.5 when missing
         ]
 
         return features
 
-    def train(self, global_swipe_history: List[Tuple[Profile, Profile, bool]]):
+    def university_match(self, viewer_profile: Profile, swiped_profile: Profile) -> float:
+        """
+        University matching with null handling:
+        - If both have values and they match: 1.0
+        - If both have values but don't match: 0.0
+        - If either or both are null: 0.5 (neutral)
+        """
+        if viewer_profile.university_id and swiped_profile.university_id:
+            return 1.0 if viewer_profile.university_id == swiped_profile.university_id else 0.0
+        return 0.5  # Neutral score when either is null
+    
+    def course_match(self, viewer_profile: Profile, swiped_profile: Profile) -> float:
+        """
+        Course matching with null handling:
+        - If both have values and they match: 1.0
+        - If both have values but don't match: 0.0
+        - If either or both are null: 0.5 (neutral)
+        """
+        if viewer_profile.course_id and swiped_profile.course_id:
+            return 1.0 if viewer_profile.course_id == swiped_profile.course_id else 0.0
+        return 0.5  # Neutral score when either is null
+    
+    def industry_match(self, viewer_profile: Profile, swiped_profile: Profile) -> float:
+        """
+        Industry matching with null handling:
+        - If both have values and they match: 1.0
+        - If both have values but don't match: 0.0
+        - If either or both are null: 0.5 (neutral)
+        """
+        if viewer_profile.work_industry and swiped_profile.work_industry:
+            return 1.0 if viewer_profile.work_industry == swiped_profile.work_industry else 0.0
+        return 0.5  # Neutral score when either is null
+
+    def train(self, global_swipe_history: List[Tuple[Profile, Profile, bool, Optional[float]]]):
         """
         Train model on global swipe history.
         Args:
-            global_swipe_history: List of (viewer_profile, candidate_profile, liked_bool) tuples
+            global_swipe_history: List of (viewer_profile, candidate_profile, liked_bool, location_score) tuples
         """
         # Convert profiles to feature vectors including both viewer and candidate info
         x = [
-            self.create_feature_vector(viewer, candidate)
-            for (viewer, candidate, _) in global_swipe_history
+            self.create_feature_vector(viewer, candidate, loc_score)
+            for (viewer, candidate, _, loc_score) in global_swipe_history
         ]
-        y = [1 if liked else 0 for (_, _, liked) in global_swipe_history]
+        y = [1 if liked else 0 for (_, _, liked, _) in global_swipe_history]
 
         x_train, x_test, y_train, y_test = train_test_split(
             np.array(x), np.array(y), test_size=0.2, random_state=42
@@ -126,6 +159,8 @@ class XGBoostRecommender:
 
         # Predict on the test set
         y_pred = self.model.predict(x_test)
+        y_pred_proba = self.model.predict_proba(x_test)[:, 1]
+        auc_score = roc_auc_score(y_test, y_pred_proba)
 
         # Calculate performance metrics
         accuracy = accuracy_score(y_test, y_pred)
@@ -138,6 +173,7 @@ class XGBoostRecommender:
         print(f"Precision: {precision:.4f}")
         print(f"Recall: {recall:.4f}")
         print(f"F1 Score: {f1:.4f}")
+        print(f"AUC Score: {auc_score:.4f}")
 
     def predict_probability(
         self, viewer_profile: Profile, swiped_profile: Profile
@@ -154,7 +190,8 @@ class XGBoostRecommender:
         return self.model.predict_proba(features)[0, 1]
 
     def recommend_profiles(
-        self, viewer_profile: Profile, swiped_profiles: List[Profile], top_k: int = 5
+        self, viewer_profile: Profile, swiped_profiles: List[Profile], 
+        location_scores: Dict = None, top_k: int = 5
     ) -> List[Tuple[Profile, float]]:
         """
         Recommend profiles for a given viewer profile using hard filters first,
@@ -163,11 +200,17 @@ class XGBoostRecommender:
         Args:
             viewer_profile: The profile of the user viewing recommendations
             swiped_profiles: List of candidate profiles to rank
+            location_scores: Optional dictionary mapping (user1_id, user2_id) to location scores
             top_k: Number of top recommendations to return
             
         Returns:
             List of (profile, score) tuples for top recommendations
         """
+        # Initialize location_scores if not provided
+        if location_scores is None:
+            location_scores = {}
+        
+
         # Apply hard filters first
         filtered_profiles = []
         
@@ -261,7 +304,12 @@ class XGBoostRecommender:
         # Create feature vectors for each candidate profile
         feature_vectors = []
         for candidate_profile in filtered_profiles:
-            feature_vector = self.create_feature_vector(viewer_profile, candidate_profile)
+            # Get location score for this pair if available
+            loc_score = location_scores.get((viewer_profile.user_id, candidate_profile.user_id), None)
+            
+            feature_vector = self.create_feature_vector(
+                viewer_profile, candidate_profile, loc_score
+            )
             feature_vectors.append(feature_vector)
         
         # Convert to numpy array
@@ -273,6 +321,26 @@ class XGBoostRecommender:
         # Create (profile, probability) pairs and sort by probability
         recommendations = list(zip(filtered_profiles, probabilities))
         recommendations.sort(key=lambda x: x[1], reverse=True)
+        
+        # Print recommendations
+        print("\nTop Recommendations:")
+        print("-" * 60)
+        for i, (profile, score) in enumerate(recommendations[:top_k], 1):
+            print(f"\nRecommendation #{i} (Match Score: {score:.4f})")
+            print(f"Profile ID: {profile.user_id}")
+            print(f"Age: {help_func.calculate_age(profile.birth_date)}")
+            print(f"Gender: {profile.gender}")
+            print(f"Work Industry: {profile.work_industry or 'Not specified'}")
+            print(f"University ID: {profile.university_id or 'Not specified'}")
+            print(f"Course ID: {profile.course_id or 'Not specified'}")
+            print(f"Activity Hours: {profile.activity_hours}")
+            print(f"Smoking: {profile.smoking}")
+            if profile.rent_budget_range:
+                print(f"Budget Range: {profile.rent_budget_range[0]}-{profile.rent_budget_range[1]}")
+            else:
+                print("Budget Range: Not specified")
+            print(f"Available From: {profile.available_at or 'Not specified'}")
+            print("-" * 60)
         
         # Return top-k recommendations
         return recommendations[:top_k]
