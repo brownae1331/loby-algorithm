@@ -3,6 +3,9 @@
 	{
 		"name": "loby-algorithm",
 		"path": "../.."
+	},
+	{
+		"path": "../../../../../../.Trash/__pycache__"
 	}
 ],
   "settings": {}

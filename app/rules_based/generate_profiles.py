@@ -13,19 +13,21 @@ from typing import Optional, List, Tuple
 class Profile:
     def __init__(
         self,
+        id: int,
+        created_at: datetime,
+        contract_length: Optional[str],
         user_id: int,
         first_name: str,
         last_name: str,
         birth_date: date,
         is_verified: bool,
         gender: str,
-        description: Optional[str],
         languages: Optional[List[str]],
         origin_country: str,
         occupation: str,
         work_industry: Optional[str],
         university_id: Optional[str],
-        course: Optional[str],
+        course_id: Optional[str],
         sexual_orientation: Optional[str],
         pets: Optional[str],
         activity_hours: str,
@@ -34,13 +36,9 @@ class Profile:
         cleanliness_level: int,
         partying_level: int,
         sex_living_preference: str,
-        rent_location_preference: Optional[str],
         age_preference: Tuple[int, int],
         rent_budget: Optional[Tuple[int, int]],
-        last_filter_processed_at: Optional[datetime],
         available_at: Optional[str],
-        interests: Optional[List[str]],
-        profile_last_activity: Optional[datetime],
         age_similarity_weight=0.6,
         gender_similarity_weight=0.6,
         occupation_weight=0.273,
@@ -60,13 +58,15 @@ class Profile:
         self.birth_date = birth_date
         self.is_verified = is_verified
         self.gender = gender
-        self.description = description
         self.languages = languages
         self.origin_country = origin_country
         self.occupation = occupation
         self.work_industry = work_industry
         self.university_id = university_id
-        self.course = course
+        self.course_id = course_id
+        self.contract_length = contract_length
+        self.id = id
+        self.created_at = created_at
         self.sexual_orientation = sexual_orientation
         self.pets = pets
         self.activity_hours = activity_hours
@@ -75,13 +75,9 @@ class Profile:
         self.cleanliness_level = cleanliness_level
         self.partying_level = partying_level
         self.sex_living_preference = sex_living_preference
-        self.rent_location_preference = rent_location_preference
         self.age_preference = age_preference
         self.rent_budget = rent_budget
-        self.last_filter_processed_at = last_filter_processed_at
         self.available_at = available_at
-        self.interests = interests
-        self.profile_last_activity = profile_last_activity
         # Weights
         self.age_similarity_weight = age_similarity_weight
         self.gender_similarity_weight = gender_similarity_weight

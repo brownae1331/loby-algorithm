@@ -37,27 +37,30 @@ def import_liked_profiles(profiles_liked_csv, all_profiles):
         for _, row in liked_df.iterrows():
             total_pairs += 1
             user_1 = next(
-                (p for p in all_profiles if p.user_id == row["profile_id_1"]), None
+                (p for p in all_profiles if p.id == row["profile_id_1"]), None
             )
             user_2 = next(
-                (p for p in all_profiles if p.user_id == row["profile_id_2"]), None
+                (p for p in all_profiles if p.id == row["profile_id_2"]), None
             )
 
             if user_1 and user_2:
                 # Skip if the users are of opposite genders
-                if user_1.gender != user_2.gender:
-                    filtered_count += 1
-                    continue
+                # if user_1.gender != user_2.gender:
+                #     filtered_count += 1
+                #     continue
 
-                # Include the date in the liked pairs
-                liked_pairs.append((user_1, user_2, row["created_at"]))
-                score_1_to_2 = calculate_overall_score(user_1, user_2)
-                score_2_to_1 = calculate_overall_score(user_2, user_1)
+                # Calculate scores once
+                score_1_to_2 = calculate_overall_score(user_1, user_2, row["location_score"])
+                score_2_to_1 = calculate_overall_score(user_2, user_1, row["location_score"])
                 avg_score = (score_1_to_2 + score_2_to_1) / 2
 
+                # Include the date, location_score, and calculated scores in the liked_pairs
+                liked_pairs.append((user_1, user_2, row["created_at"], row["location_score"], 
+                                   score_1_to_2, score_2_to_1, avg_score))
+
                 print(
-                    f"Match: {user_1.first_name} {user_1.last_name} (ID: {user_1.user_id}) and "
-                    f"{user_2.first_name} {user_2.last_name} (ID: {user_2.user_id})"
+                    f"Match: {user_1.first_name} {user_1.last_name} (ID: {user_1.id}) and "
+                    f"{user_2.first_name} {user_2.last_name} (ID: {user_2.id})"
                 )
                 print(f"Gender: {user_1.gender} - {user_2.gender}")
                 print(
@@ -66,7 +69,8 @@ def import_liked_profiles(profiles_liked_csv, all_profiles):
                 print(
                     f"Score {user_2.first_name} → {user_1.first_name}: {score_2_to_1:.2f}"
                 )
-                print(f"Average Score: {avg_score:.2f}")
+                print(f"Location Score: {row['location_score']:.2f}")
+                print(f"Final Score (with location): {avg_score:.2f}")
                 print("-" * 70)
 
         print(f"\nTotal pairs processed: {total_pairs}")
@@ -90,10 +94,10 @@ def run():
     # Initialize profiles from CSV
     csv_path = os.path.join(
         os.path.dirname(__file__),
-        "_SELECT_All_columns_from_profile_p_All_columns_from_profile_filt_202502081830.csv",
+        "Profiles_11-03.csv",
     )
     profiles_liked_csv = os.path.join(
-        os.path.dirname(__file__), "profile_like_202502081830.csv"
+        os.path.dirname(__file__), "likes_11-03.csv"
     )
     all_profiles = initialize_profile_list_from_csv(csv_path)
 
@@ -111,12 +115,10 @@ def run():
     total_high_scores = 0
 
     for pair in liked_pairs:
-        user_1, user_2, date = pair
-        month_key = date.strftime("%Y-%m")
+        # Unpack all values including pre-calculated scores
+        _, _, date, _, _, _, avg_score = pair
 
-        score_1_to_2 = calculate_overall_score(user_1, user_2)
-        score_2_to_1 = calculate_overall_score(user_2, user_1)
-        avg_score = (score_1_to_2 + score_2_to_1) / 2
+        month_key = date.strftime("%Y-%m")
 
         # Update overall statistics
         total_score += avg_score
