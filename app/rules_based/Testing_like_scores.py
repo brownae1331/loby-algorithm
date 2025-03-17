@@ -2,6 +2,7 @@ import os
 import sys
 import pandas as pd
 import random
+import matplotlib.pyplot as plt  # Add matplotlib import
 
 # Add the project root to Python path when running directly
 if __name__ == "__main__":
@@ -113,10 +114,16 @@ def run():
     total_score = 0
     total_pairs = 0
     total_high_scores = 0
+    
+    # Collect all scores for the histogram
+    all_scores = []
 
     for pair in liked_pairs:
         # Unpack all values including pre-calculated scores
         _, _, date, _, _, _, avg_score = pair
+        
+        # Add score to our collection for the histogram
+        all_scores.append(avg_score)
 
         month_key = date.strftime("%Y-%m")
 
@@ -167,6 +174,29 @@ def run():
             f"Percentage of all likes with score >0.7: {overall_high_score_percentage:.1f}%"
         )
         print(f"Total number of liked pairs: {total_pairs}")
+
+        # Create and save the histogram
+        plt.figure(figsize=(10, 6))
+        plt.hist(all_scores, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
+        plt.title('Distribution of Compatibility Scores')
+        plt.xlabel('Compatibility Score')
+        plt.ylabel('Number of Pairs')
+        plt.grid(axis='y', alpha=0.75)
+        
+        # Add a vertical line for the mean
+        plt.axvline(x=overall_avg, color='red', linestyle='--', label=f'Mean: {overall_avg:.2f}')
+        
+        # Add a vertical line for the threshold of 0.7
+        plt.axvline(x=0.7, color='green', linestyle='-.', label='Threshold: 0.7')
+        
+        plt.legend()
+        
+        # Save the figure
+        plt.savefig('score_distribution.png')
+        print("\nScore distribution histogram saved as 'score_distribution.png'")
+        
+        # Show the plot
+        plt.show()
 
     if not monthly_stats:
         print("\nNo liked pairs found.")

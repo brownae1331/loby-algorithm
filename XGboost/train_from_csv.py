@@ -192,10 +192,10 @@ def main():
     # Get current directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Construct paths to CSV files
+    #Construct paths to CSV files
     profiles_path = os.path.join(current_dir, "profiles_11-03.csv")
-    likes_path = os.path.join(current_dir, "likes_13-03.csv")
-    swipes_path = os.path.join(current_dir, "swipes_13-03.csv")
+    likes_path = os.path.join(current_dir, "smaller_likes_13-03.csv")
+    swipes_path = os.path.join(current_dir, "smaller_swipes.csv")
     
     # 1. Load profiles from CSV
     test_profiles = load_profiles_from_csv(profiles_path)

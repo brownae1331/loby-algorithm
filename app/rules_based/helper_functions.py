@@ -612,7 +612,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile, locatio
         + activity_hours_score
         + university_score
         + gender_similarity_score
-        + location_score
+        + (location_score/0.2) * 0.0796
     )
 
     # Calculate the maximum possible score (sum of weights)
@@ -627,7 +627,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile, locatio
         + (profile.activity_hours_weight)
         + (profile.university_weight if university_score != -1 else 0)
         + (profile.gender_similarity_weight)
-        + 0.2
+        + 0.0796
     )
 
     # Normalize the score between 0 and 1
