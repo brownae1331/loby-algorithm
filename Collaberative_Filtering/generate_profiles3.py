@@ -34,6 +34,7 @@ class Profile:
         age_range: Optional[Tuple[int, int]] = None,
         interests: Optional[List[str]] = None,
         likes: List = [],
+        apt_likes: List = [],
     ):
         self.user_id = user_id
         self.first_name = first_name
@@ -56,6 +57,7 @@ class Profile:
         self.partying_level = partying_level
         self.available_at = available_at
         self.likes = likes
+        self.apt_likes = apt_likes
         self.id = id
         self.created_at = created_at
         self.contract_length = contract_length
