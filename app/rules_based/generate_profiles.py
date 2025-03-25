@@ -39,18 +39,19 @@ class Profile:
         age_preference: Tuple[int, int],
         rent_budget: Optional[Tuple[int, int]],
         available_at: Optional[str],
-        age_similarity_weight=0.0678,
-        gender_similarity_weight=0.2990,
-        occupation_weight=0.0684,
+        age_similarity_weight=0.3,
+        gender_similarity_weight=0.15,
+        occupation_weight=0.125,
         special_origin_country_weight=0.2,
-        university_weight=0.1139,
+        university_weight=0.1,
         budget_weight=0,
-        course_weight=0.0655,
-        work_industry_weight=0.0727,
-        smoking_weight=0.0578,
-        origin_country_weight=0.0941,
-        activity_hours_weight=0.0811,
-        likes=[],
+        course_weight=0.05,
+        work_industry_weight=0.05,
+        smoking_weight=0,
+        origin_country_weight=0.025,
+        activity_hours_weight=0,
+        likes=None,
+        matches=None,
     ):
         self.user_id = user_id
         self.first_name = first_name
@@ -91,4 +92,6 @@ class Profile:
         self.smoking_weight = smoking_weight
         self.activity_hours_weight = activity_hours_weight
 
-        self.likes = likes
+        # Initialize mutable objects properly
+        self.likes = [] if likes is None else likes
+        self.matches = [] if matches is None else matches

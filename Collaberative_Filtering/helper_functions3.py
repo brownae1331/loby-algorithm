@@ -19,11 +19,31 @@ def calculate_age(birth_date):
 
 class CollaborativeFilteringMatcher:
     def __init__(self, profiles, apartments, user_apt_filters, similarity_method="jaccard"):
-        self.profiles = profiles
-        self.apartments = apartments
-        self.apartment_filters = user_apt_filters  
+        # Store original counts for reporting
+        original_users_count = len(profiles)
+        original_apartments_count = len(apartments)
         
-        # Create mappings for faster lookup
+        # Filter out users with no apartment likes
+        self.profiles = [p for p in profiles if len(p.apt_likes) > 0]
+        print(f"Filtered {original_users_count - len(self.profiles)} users with no enquiries")
+        print(f"Remaining users with enquiries: {len(self.profiles)}")
+        
+        # Get the set of apartments that have at least one like
+        liked_apartment_ids = set()
+        for profile in self.profiles:
+            liked_apartment_ids.update(profile.apt_likes)
+        
+        # Filter apartments to only those with at least one like
+        self.apartments = [a for a in apartments if a.id in liked_apartment_ids]
+        print(f"Filtered {original_apartments_count - len(self.apartments)} apartments with no enquiries")
+        print(f"Remaining apartments with enquiries: {len(self.apartments)}")
+        
+        # Filter apartment_filters to only include users who have apartment likes
+        active_user_ids = {profile.user_id for profile in self.profiles}
+        self.apartment_filters = {uid: filters for uid, filters in user_apt_filters.items() 
+                                 if uid in active_user_ids}
+        
+        # Create mappings for faster lookup with filtered data
         self.user_id_to_index = {profile.user_id: i for i, profile in enumerate(self.profiles)}
         self.apartment_id_to_index = {apartment.id: i for i, apartment in enumerate(self.apartments)}
         self.index_to_user_id = {i: profile.user_id for i, profile in enumerate(self.profiles)}
@@ -38,6 +58,10 @@ class CollaborativeFilteringMatcher:
             self.user_similarity = self._compute_matrix_factorization()
         else:
             self.user_similarity = self.compute_similarity(method=similarity_method)
+            
+        # Store original data for reference
+        self.all_profiles = profiles
+        self.all_apartments = apartments
 
     def _build_interaction_matrix(self):
         """Build a user-item interaction matrix where each cell (i,j) is 1 if user i likes apartment j."""
@@ -133,7 +157,7 @@ class CollaborativeFilteringMatcher:
         Parameters:
         - method: The similarity method to use ('cosine', 'jaccard', or 'matrix_factorization')
         
-        Returns:
+    Returns:
         - A similarity matrix
         """
         if method.lower() == "jaccard":
@@ -221,7 +245,12 @@ class CollaborativeFilteringMatcher:
     
     def recommend_roommates(self, user_id, top_n=5):
         """Recommend potential roommates based on collaborative filtering with hard filters."""
+        # Check if user exists in the filtered dataset
         if user_id not in self.user_id_to_index:
+            # If user has no enquiries but exists in the original dataset, return filtered users
+            if any(p.user_id == user_id for p in self.all_profiles):
+                print(f"User {user_id} has no enquiries. Using hard filters only.")
+                return self.apply_hard_filters_for_inactive_user(user_id)
             return []
         
         # Apply hard filters first
@@ -246,7 +275,95 @@ class CollaborativeFilteringMatcher:
         
         # Return top N recommendations
         return filtered_scores[:top_n]
-    
+        
+    def apply_hard_filters_for_inactive_user(self, user_id):
+        """Apply only hard filters for users with no enquiries."""
+        # Find the profile in the original dataset
+        viewer_profile = None
+        for profile in self.all_profiles:
+            if profile.user_id == user_id:
+                viewer_profile = profile
+                break
+        
+        if not viewer_profile:
+            return []
+        
+        # Apply the same hard filters but against active users only
+        filtered_profiles = []
+        
+        # Parse viewer's available date
+        viewer_available_at = parse_date(viewer_profile.available_at)
+        
+        for profile in self.profiles:  # Only check against users with enquiries
+            # Skip if it's the same user
+            if profile.user_id == viewer_profile.user_id:
+                continue
+            
+            # Apply the same filters as in apply_hard_filters
+            # 1. Date range check
+            if viewer_available_at and profile.available_at:
+                profile_available_at = parse_date(profile.available_at)
+                if profile_available_at:
+                    if isinstance(viewer_available_at, datetime):
+                        viewer_available_at = viewer_available_at.date()
+                    if isinstance(profile_available_at, datetime):
+                        profile_available_at = profile_available_at.date()
+                        
+                    if not (
+                        (viewer_available_at - timedelta(days=14))
+                        <= profile_available_at
+                        <= (viewer_available_at + timedelta(days=14))
+                    ):
+                        continue
+            
+            # 2. Budget overlap check
+            if viewer_profile.rent_budget_range and profile.rent_budget_range:
+                viewer_min, viewer_max = viewer_profile.rent_budget_range
+                candidate_min, candidate_max = profile.rent_budget_range
+                
+                if viewer_max < candidate_min or candidate_max < viewer_min:
+                    continue
+            
+            # 3. Age range check
+            if hasattr(viewer_profile, 'age_range') and viewer_profile.age_range and profile.birth_date:
+                min_age, max_age = viewer_profile.age_range
+                candidate_age = calculate_age(profile.birth_date)
+                
+                if candidate_age < min_age or candidate_age > max_age:
+                    continue
+                    
+            if hasattr(profile, 'age_range') and profile.age_range and viewer_profile.birth_date:
+                min_age, max_age = profile.age_range
+                viewer_age = calculate_age(viewer_profile.birth_date)
+                
+                if viewer_age < min_age or viewer_age > max_age:
+                    continue
+            
+            # 4. Gender preference check
+            if viewer_profile.preferred_gender and profile.gender:
+                viewer_accepts_candidate = (
+                    viewer_profile.preferred_gender == "ANY" or 
+                    viewer_profile.preferred_gender == profile.gender
+                )
+                
+                if not viewer_accepts_candidate:
+                    continue
+                    
+            if profile.preferred_gender and viewer_profile.gender:
+                candidate_accepts_viewer = (
+                    profile.preferred_gender == "ANY" or 
+                    profile.preferred_gender == viewer_profile.gender
+                )
+                
+                if not candidate_accepts_viewer:
+                    continue
+            
+            # If passed all filters, add to filtered profiles with a baseline similarity
+            filtered_profiles.append((profile.user_id, 0.1))
+        
+        # Return matches sorted by apartment likes count (more experienced users first)
+        return sorted(filtered_profiles, key=lambda x: len(next(p for p in self.profiles if p.user_id == x[0]).apt_likes), reverse=True)
+
     def apply_hard_filters(self, user_id):
         """Apply hard filters to find compatible matches based on user preferences."""
         if user_id not in self.user_id_to_index:

@@ -4,7 +4,7 @@ if __name__ == "__main__":
     from generate_profiles import Profile
 else:
     # Being imported - use relative import
-    from .generate_profiles import Profile
+    from generate_profiles import Profile  #. in front of generate_profiles to run from the root directory
 import pandas as pd
 from datetime import date, timedelta
 from typing import List, Union, Tuple
@@ -90,16 +90,6 @@ class Constants:
         ],
     }
 
-
-# def calculate_k_factor(time_difference_days, DECAY_RATE) -> float:
-#     """
-#     Calculate the k-factor based on the time difference from the liked_time.
-#     The k-factor decreases exponentially based on the decay_rate for each day since the liked_time.
-#     """
-#     k_factor = np.exp(-DECAY_RATE * time_difference_days)
-#     return k_factor
-
-
 # ======================
 # Core Functions (in order of execution)
 # ======================
@@ -179,7 +169,12 @@ def initialize_profile_list_from_csv(csv_path: str) -> List[Profile]:
                 sex_living_preference=row.get("preferred_gender", None),
                 rent_budget=rent_budget,
                 available_at=available_at,
-            )
+                )
+                
+                # Add active_today as an attribute (not part of constructor)
+                # Convert to boolean value, defaulting to False if not present
+                profile.active_today = bool(row.get("active_today", False))
+                
                 profile_objects.append(profile)
             except Exception as e:
                 print(
@@ -188,117 +183,15 @@ def initialize_profile_list_from_csv(csv_path: str) -> List[Profile]:
                 continue
 
         print(f"Successfully loaded {len(profile_objects)} profiles")
+        # Count how many active profiles we have
+        active_profiles = sum(1 for p in profile_objects if p.active_today)
+        print(f"Found {active_profiles} active profiles")
+        
         return profile_objects
 
     except Exception as e:
         print(f"Error loading CSV file: {str(e)}")
         return []
-
-
-# # def users_hard_filters(
-# #     starting_profile: Profile, profile_objects: List[Profile], filters: dict
-# # ) -> List[Profile]:
-# #     """
-# #     Apply hard filters to the profile list based on the starting profile's chosen filters.
-# #     """
-# #     filtered_profiles = profile_objects.copy()  # Start with all profiles
-
-# #     for profile in profile_objects[:]:  # Use slice copy to safely remove items
-# #         matches_filters = True
-
-# #         # Country filter
-# #         if filters.get("country"):
-# #             if (
-# #                 not profile.origin_country
-# #                 or profile.origin_country != filters["country"]
-# #             ):
-# #                 matches_filters = False
-
-# #         # University filter
-# #         if filters.get("university"):
-# #             if (
-# #                 not profile.university_id
-# #                 or profile.university_id != filters["university"]
-# #             ):
-# #                 matches_filters = False
-
-# #         # Course filter
-# #         if filters.get("course"):
-# #             if (
-# #                 not profile.course
-# #                 or profile.course.lower() != filters["course"].lower()
-# #             ):
-# #                 matches_filters = False
-
-# #         # Industry filter
-# #         if filters.get("work_industry"):
-# #             if (
-# #                 not profile.work_industry
-# #                 or profile.work_industry.lower() != filters["work_industry"].lower()
-# #             ):
-# #                 matches_filters = False
-
-# #         # Active today filter
-# #         if filters.get("active_today"):
-# #             if (
-# #                 not profile.profile_last_activity
-# #                 or (
-# #                     pd.Timestamp.now(tz=profile.profile_last_activity.tz)
-# #                     - profile.profile_last_activity
-# #                 ).days
-# #                 > 1
-# #             ):
-# #                 matches_filters = False
-
-# #         if not matches_filters:
-# #             filtered_profiles.remove(profile)
-
-#     # Add debug prints
-#     print(f"\nApplying filters: {filters}")
-#     print(f"Before filtering: {len(profile_objects)} profiles")
-#     print(f"After filtering: {len(filtered_profiles)} profiles")
-#     if len(filtered_profiles) == 0:
-#         print("No profiles matched the specified filters.")
-#         for filter_name, filter_value in filters.items():
-#             if filter_name == "active_today":
-#                 matching_count = sum(
-#                     1
-#                     for p in profile_objects
-#                     if p.profile_last_activity
-#                     and (
-#                         pd.Timestamp.now(tz=p.profile_last_activity.tz)
-#                         - p.profile_last_activity
-#                     ).days
-#                     <= 1
-#                 )
-#             else:
-#                 matching_count = sum(
-#                     1
-#                     for p in profile_objects
-#                     if getattr(
-#                         p,
-#                         {
-#                             "country": "origin_country",
-#                             "university": "university_id",
-#                             "course": "course",
-#                             "work_industry": "work_industry",
-#                         }.get(filter_name, filter_name),
-#                     )
-#                     and getattr(
-#                         p,
-#                         {
-#                             "country": "origin_country",
-#                             "university": "university_id",
-#                             "course": "course",
-#                             "work_industry": "work_industry",
-#                         }.get(filter_name, filter_name),
-#                     )
-#                     == filter_value
-#                 )
-#             print(f"Profiles matching {filter_name}: {matching_count}")
-
-#     return filtered_profiles
-
 
 def assign_profiles_to_profile_list(
     starting_profile: Profile,
@@ -308,13 +201,6 @@ def assign_profiles_to_profile_list(
 ) -> List[Profile]:
     """Assign profiles to the profile list based on move-in month, city, sex_living preference,
     age preference, rent budget, and optional custom filters"""
-
-    # # If custom filters are provided, apply them first
-    # if filters:
-    #     profile_objects = users_hard_filters(starting_profile, profile_objects, filters)
-    #     if not profile_objects:
-    #         return []
-    #     print(f"\nAfter hard filters: {len(profile_objects)} profiles")
 
     # First apply basic filters
     profile_list = []
@@ -612,7 +498,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile, locatio
         + activity_hours_score
         + university_score
         + gender_similarity_score
-        + (location_score/0.2) * 0.0796
+        + location_score
     )
 
     # Calculate the maximum possible score (sum of weights)
@@ -627,7 +513,7 @@ def calculate_overall_score(starting_profile: Profile, profile: Profile, locatio
         + (profile.activity_hours_weight)
         + (profile.university_weight if university_score != -1 else 0)
         + (profile.gender_similarity_weight)
-        + 0.0796
+        + 0.2
     )
 
     # Normalize the score between 0 and 1
