@@ -7,8 +7,8 @@ from typing import List
 def main():
     # Set file paths
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    profiles_path = os.path.join(base_dir, 'profiles_of_matches-25-03.csv')  # Ensure this file exists
-    matches_path = os.path.join(base_dir, 'profile_match-25-03.csv')
+    profiles_path = os.path.join(base_dir, 'profiles-10.csv')  # Ensure this file exists
+    matches_path = os.path.join(base_dir, 'profile_match-35.csv')
     
     # Check if files exist
     if not os.path.exists(profiles_path):
@@ -19,7 +19,7 @@ def main():
         print(f"Error: Matches file not found at {matches_path}")
         return
     
-    # Load profiles
+    # Load profiles 
     print("Loading profiles...")
     profiles = initialize_profile_list_from_csv(profiles_path)
     
@@ -47,3 +47,6 @@ def main():
 
 if __name__ == "__main__":
     main() 
+
+    ### Need to add fuction to check which group is most compatible and only send 1 notif at a time to a user 
+    ### Need to add match time expiration for bridge recommendations (7 days - for now - will need to change if match number increases)
